@@ -98,7 +98,7 @@ class RRT(object):
 
         ## Intermediate Outputs
         # You must update and/or populate:
-        #    - V, P, n: the represention of the planning tree
+        #    - V, P, n: the representation of the planning tree
         #    - success: whether or not you've found a solution within max_iters RRT iterations
         #    - self.path: if success is True, then must contain list of states (tree nodes)
         #          [x_init, ..., x_goal] such that the global trajectory made by linking steering
@@ -115,6 +115,30 @@ class RRT(object):
         #   - the order in which you pass in arguments to steer_towards and is_free_motion is important
 
         ########## Code starts here ##########
+        
+        for iter in max_iters:
+            self.num_iters = iter
+            
+            z = np.random.random()
+            
+            # Change to random one
+            x_rand = self.x_goal if z < goal_bias else self.x_goal
+            
+            x_near = self.find_nearest(V, x_rand)
+            x_new = self.steer_towards(x_near, x_rand, eps)
+            
+            if self.is_free_motion(self.obstacles, x_near, x_new):
+                V[n] = x_new
+                P[n] = x_near
+                n += 1
+                
+                if x_new == self.x_goal:
+                    break
+                
+        else:
+            success = False
+                
+            
 
         ########## Code ends here ##########
 
