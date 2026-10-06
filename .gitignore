@@ -5,6 +5,11 @@
 venv
 .venv
 
+# 274a
+aa274a/build
+aa274a/install
+aa274a/log
+
 # Prerequisites
 *.d
 
