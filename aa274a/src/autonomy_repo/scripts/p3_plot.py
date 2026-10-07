@@ -44,6 +44,7 @@ class PlottingNode(Node):
             self.angles.append(wrap_angle(msg.theta))
         else:
             if not self.plotted:
+                self.print_stats()  # Added
                 self.plot()
                 self.plotted = True
 
@@ -72,6 +73,28 @@ class PlottingNode(Node):
             print(f"Successfully plotted to {filename.absolute()}")
             print("Close this node with CTRL+C!")
         plt.close(fig)
+        
+    # Added
+    def print_stats(self):
+        angles = np.array(self.angles)
+        error = np.abs(angles - self.goal)
+
+        tau = 0.05
+        threshold = tau * abs(error[0])
+        idx_threshold = np.where(error <= threshold)[0]
+        
+        time = np.linspace(0, self.total_msg_cnt / 100, num=len(self.angles))
+
+        if len(idx_threshold) > 0:
+            idx = idx_threshold[0]
+            print(f"From initial angle of {angles[0]} to goal of {self.goal}")
+            print(f"First {tau * 100:.0f}% threshold crossing: {time[idx]:.3f} s")
+            
+            
+        else:
+            print(f"Never crossed {tau * 100:.0f}% threshold")
+        
+            
 
 
 if __name__ == "__main__":
