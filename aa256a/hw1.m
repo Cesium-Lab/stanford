@@ -1,6 +1,7 @@
 close all
 clear
 clc
+
 %% Problem 1
 
 syms s11 s22 s33 s23 s13 s12 C S
@@ -9,12 +10,129 @@ sigma = [s11 s12 s13;
          s12 s22 s23;
          s13 s23 s33];
 
-Rx = [1 0 0; 0 C S; 0 -S C];
+Rx = [
+    1 0 0; 
+    0 C S; 
+    0 -S C
+    ];
+
 sigma_x = Rx * sigma * Rx.';
 disp("sigma_x:")
 disp(simplify(sigma_x))
 
-Ry = [C 0 -S; 0 1 0; S 0 C];
+Ry = [
+    C 0 -S;
+    0 1 0;
+    S 0 C
+    ];
 sigma_y = Ry * sigma * Ry.';
 disp("sigma_y:")
 disp(simplify(sigma_y))
+
+%% Problem 2
+
+theta1 = deg2rad(90);
+theta2 = deg2rad(30);
+theta3 = deg2rad(45);
+
+R1 = [
+    1 0 0; 
+    0 cos(theta1) sin(theta1); 
+    0 -sin(theta1) cos(theta1)
+    ];
+
+R2 = [
+    cos(theta2) 0 -sin(theta2);
+    0 1 0;
+    sin(theta2) 0 cos(theta2)
+    ];
+
+R3 = [
+    cos(theta3) sin(theta3) 0;
+    -sin(theta3) cos(theta3) 0;
+    0 0 1
+    ];
+
+% Normal matrices
+sigma = [
+    1 2 5;
+    2 3 5;
+    5 5 6];
+
+eps = [1 2 5; 2 3 5; 5 5 6];
+
+sigma_prime_R = R3*R2*R1*sigma*R1'*R2'*R3';
+
+% Transformation
+
+c1 = cos(theta1);
+c2 = cos(theta2);
+c3 = cos(theta3);
+s1 = sin(theta1);
+s2 = sin(theta2);
+s3 = sin(theta3);
+
+Tx = [
+    1 0 0 0 0 0;
+    0 c1*c1 s1*s1 2*c1*s1 0 0;
+    0 s1*s1 c1*c1 -2*c1*s1 0 0;
+    0 c1*s1 -c1*s1 c1*c1-s1*s1 0 0;
+    0 0 0 0 c1 -s1;
+    0 0 0 0 s1 c1
+    ];
+
+Ty = [
+    c2*c2 0 s2*s2 0 -2*c2*s2 0;
+    0 1 0 0 0 0;
+    s2*s2 0 c2*c2 0 2*c2*s2 0;
+    0 0 0 c2 0 s2;
+    c2*s2 0 -c2*s2 0 c2*c2-s2*s2 0;
+    0 0 0 -s2 0 c2
+    ];
+
+Tz = [
+    c3*c3 s3*s3 0 0 0 2*c3*s3;
+    s3*s3 c3*c3 0 0 0 -2*c3*s3;
+    0 0 1 0 0 0;
+    0 0 0 c3 -s3 0;
+    0 0 0 s3 c3 0;
+    -c3*s3 c3*s3 0 0 0 c3*c3-s3*s3
+    ];
+
+T = Tz*Ty*Tx;
+
+disp("T:")
+disp(T)
+
+sigma_vec = [1 3 6 5 5 2]';
+
+sigma_prime = T*sigma_vec;
+
+disp("sigma_prime (T):")
+disp(sigma_prime)
+
+disp("sigma_prime (Rotation matrices):")
+disp(sigma_prime_R)
+
+% Epsilon
+
+
+eps_vec = [1 3 6 5 5 2]';
+R = diag([1,1,1,2,2,2]);
+e_vec = R*eps_vec;
+
+T_eps = R * T / R;
+
+
+e_prime = T_eps*e_vec;
+e_vec_check = (T') \ e_vec;
+
+disp("e_prime (T):")
+disp(e_prime)
+
+disp("e_vec_check (T^{-T}):")
+disp(e_vec_check)
+
+
+
+

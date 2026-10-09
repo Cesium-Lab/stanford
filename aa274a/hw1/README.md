@@ -18,9 +18,9 @@ So
 ```
 0 < kp < 20
 ```
-Where `kp < 10` would make it exponentially decay, but `kp > 10` would cause the coefficient of `e_k` to be negative, which would cause sinusoidal motion, but it would still be bound by an exponential decay envelope.
+<!-- Where `kp < 10` would make it exponentially decay, but `kp > 10` would cause the coefficient of `e_k` to be negative, which would cause sinusoidal motion, but it would still be bound by an exponential decay envelope.
 
-Then, if `kp < 0`, error would just grow, and if `kp > 20` the error would stil be sinusoidal, but it would grow exponentially as well.
+Then, if `kp < 0`, error would just grow, and if `kp > 20` the error would stil be sinusoidal, but it would grow exponentially as well. -->
 
 ## Problem 3.8.c
 

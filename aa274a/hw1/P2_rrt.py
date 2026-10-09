@@ -116,28 +116,48 @@ class RRT(object):
 
         ########## Code starts here ##########
         
-        for iter in max_iters:
+        self.path = []
+        
+        def rand_num(high, low):
+            x_range = high[0] - low[0]
+            y_range = high[1] - low[1]
+            return np.array([np.random.random()*x_range + low[0], np.random.random()*y_range + low[1]])
+        
+        for iter in range(max_iters):
             self.num_iters = iter
             
             z = np.random.random()
             
-            # Change to random one
-            x_rand = self.x_goal if z < goal_bias else self.x_goal
+            if z < goal_bias:
+                x_rand = self.x_goal
+            else:
+                x_rand = rand_num(self.statespace_hi, self.statespace_lo)
+
+            x_near_idx = self.find_nearest(V[:n], x_rand)
+            x_near = V[x_near_idx]
             
-            x_near = self.find_nearest(V, x_rand)
             x_new = self.steer_towards(x_near, x_rand, eps)
             
             if self.is_free_motion(self.obstacles, x_near, x_new):
                 V[n] = x_new
-                P[n] = x_near
+                P[n] = x_near_idx
+
                 n += 1
-                
-                if x_new == self.x_goal:
+
+                if np.allclose(x_new, self.x_goal):
+                    success = True
                     break
                 
+
         else:
             success = False
-                
+            
+        idx = n-1
+        while idx != -1:
+            self.path.append(V[idx])
+            idx = P[idx]
+            
+        self.path = np.array(self.path[::-1])
             
 
         ########## Code ends here ##########
@@ -182,7 +202,20 @@ class RRT(object):
             None, but should modify self.path
         """
         ########## Code starts here ##########
+        
+        success = False
 
+        while not success:
+            success = True
+            for i in range(1, len(self.path)-1):
+                if np.allclose(self.path[i], self.x_goal) or np.allclose(self.path[i], self.x_init):
+                    continue
+
+                if self.is_free_motion(self.obstacles, self.path[i-1], self.path[i+1]):
+                    self.path = np.delete(self.path, i, axis=0)
+                    success = False
+                    break
+                    
         ########## Code ends here ##########
 
 class GeometricRRT(RRT):
@@ -195,7 +228,10 @@ class GeometricRRT(RRT):
         # Consult function specification in parent (RRT) class.
         ########## Code starts here ##########
         # Hint: This should take 1-3 line.
+        distances = np.apply_along_axis(lambda i: np.linalg.norm((i - x)), 1, V)
+        result = np.argmin(distances)
 
+        return result
         ########## Code ends here ##########
         pass
 
@@ -203,6 +239,14 @@ class GeometricRRT(RRT):
         # Consult function specification in parent (RRT) class.
         ########## Code starts here ##########
         # Hint: This should take 1-4 line.
+        
+        diff = x2 - x1
+        if np.linalg.norm(diff) < eps:
+            return x2
+        
+        result = eps * diff / np.linalg.norm(diff) + x1
+
+        return result
 
         ########## Code ends here ##########
         pass
