@@ -1,0 +1,113 @@
+import numpy as np
+from scipy.linalg import solve_continuous_are
+from planar_quad import PlanarQuadrotor
+
+def find_closest_nominal_state(state, nominal_states):
+    """
+    Inputs:
+        state: current state, shape (x_dim,)
+        nominal_states: nominal trajectory, shape (N + 1, x_dim)
+    Output:
+        Integer index j of the nominal state closest to state, using the Euclidean
+        norm of the full state difference
+    """
+    ########## Code starts here ##########
+
+    diffs = np.linalg.norm(nominal_states - state, axis=1)
+    
+    return np.argmin(diffs)
+    ########## Code ends here ##########
+
+
+def compute_lqr_gain(A, B, Q, R):
+    """
+    Infinite-horizon continuous-time LQR gain for xdot = A x + B u.
+    Inputs:
+        A: (x_dim, x_dim), B: (x_dim, u_dim), Q: (x_dim, x_dim), R: (u_dim, u_dim)
+    Output:
+        K: (u_dim, x_dim), so that u = -K x
+
+    HINT: use solve_continuous_are (imported above).
+    """
+    ########## Code starts here ##########
+    P = solve_continuous_are(A, B, Q, R)
+    
+    K = np.linalg.inv(R) @ B.T @ P
+    ########## Code ends here ##########
+    return K
+
+
+def nominal_control_at(j, nominal_controls, planar_quad):
+    """Nominal control for nominal state j. The last state has no control, so hover thrust is used."""
+    if j < len(nominal_controls):
+        return nominal_controls[j]
+    return planar_quad.hover_control
+
+
+def compute_gain_schedule(planar_quad: PlanarQuadrotor, nominal_states, nominal_controls, Q, R):
+    """
+    Inputs:
+        planar_quad: PlanarQuadrotor object
+        nominal_states: (N + 1, x_dim), nominal_controls: (N, u_dim)
+        Q, R: LQR weights
+    Output:
+        List of N + 1 gain matrices, where entry j is the LQR gain for the dynamics
+        linearized about nominal state j and its nominal control
+
+    HINT: use planar_quad.get_continuous_jacobians and nominal_control_at.
+    """
+    gains = []
+    ########## Code starts here ##########
+    
+    N = nominal_states.shape[0]
+    
+    for j in range(N):
+    
+        u = nominal_control_at(j, nominal_controls, planar_quad)
+        
+        A,B = planar_quad.get_continuous_jacobians(nominal_states[j], u)
+
+        K = compute_lqr_gain(A, B, Q, R)
+        
+        gains.append(K)
+
+    ########## Code ends here ##########
+    return gains
+
+
+def compute_hover_gain(planar_quad: PlanarQuadrotor, Q, R):
+    """
+    Output:
+        Single LQR gain K for the dynamics linearized about a level hover
+        (zero velocity and pitch, thrust planar_quad.hover_control).
+    """
+    ########## Code starts here ##########
+    
+    s_goal = np.zeros(planar_quad.x_dim)
+    u_goal = planar_quad.hover_control
+    
+    A,B = planar_quad.get_continuous_jacobians(s_goal, u_goal)
+    K = compute_lqr_gain(A, B, Q, R)
+    
+    ########## Code ends here ##########
+    return K
+
+
+def lqr_control(state, j, nominal_states, nominal_controls, gains, planar_quad: PlanarQuadrotor):
+    """
+    Gain-scheduled LQR about nominal point j: u = u_j - K_j (x - x_j).
+    Inputs:
+        state: (x_dim,)
+        j: index of the nominal state / gain to use
+        gains: list of N + 1 gain matrices
+    Output:
+        Control (u_dim,). Do not clip; the simulator applies the thrust limits.
+    """
+    ########## Code starts here ##########
+    
+    u = nominal_control_at(j, nominal_controls, planar_quad)
+    control = u - gains[j] @ (state - nominal_states[j])
+    
+    # raise NotImplementedError
+    ########## Code ends here ##########
+    return control
