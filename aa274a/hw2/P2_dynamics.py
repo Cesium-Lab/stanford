@@ -47,8 +47,8 @@ class TurtleBotDynamics(Dynamics):
         ########## Code starts here ##########
 
         
-        x_dot = control.v * np.cos(state.x)
-        y_dot = control.v * np.sin(state.x)
+        x_dot = control.v * np.cos(state.th)
+        y_dot = control.v * np.sin(state.th)
         th_dot = control.om
         
         state_new.x = state.x + self.dt * x_dot
