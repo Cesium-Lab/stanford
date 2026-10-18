@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def checkerboard_points(nx, ny, square_size):
+def checkerboard_points(nx, ny, square_size: float):
     """
     World coordinates of the checkerboard corners on the Z = 0 plane.
     Inputs:
@@ -12,7 +12,12 @@ def checkerboard_points(nx, ny, square_size):
         (0, 0), (s, 0), ..., ((nx-1)s, 0), (0, s), ...
     """
     ########## Code starts here ##########
-    raise NotImplementedError
+    x = np.arange(0,nx)
+    y = np.arange(0,ny)
+    
+    coords = np.array(np.meshgrid(x,y)).reshape(2,-1) * square_size
+    return coords.T
+
     ########## Code ends here ##########
 
 
@@ -26,6 +31,11 @@ def compute_homography(world_xy, uv):
         (3, 3) homography, scaled so that H[2, 2] = 1
     """
     ########## Code starts here ##########
+    xy_full = np.hstack((uv, np.ones_like(world_xy[:,0])))
+    uv_full = np.hstack((uv, np.ones_like(uv[:,0])))
+    
+    print(xy_full.shape)
+    print(uv_full.shape)
     raise NotImplementedError
     ########## Code ends here ##########
 
@@ -50,7 +60,7 @@ def pose_from_homography(K, H):
     return R, t
 
 
-def project_points(K, R, t, X):
+def project_points(K: np.ndarray, R: np.ndarray, t: np.ndarray, X: np.ndarray):
     """
     Inputs:
         K, R: (3, 3), t: (3,)
@@ -59,7 +69,8 @@ def project_points(K, R, t, X):
         (N, 2) pixel coordinates (u, v)
     """
     ########## Code starts here ##########
-    raise NotImplementedError
+    P_prime = X @ R + t
+    return P_prime[:,:2] / P_prime[0,2]
     ########## Code ends here ##########
 
 
