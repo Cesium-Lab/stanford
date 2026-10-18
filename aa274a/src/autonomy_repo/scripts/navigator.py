@@ -6,6 +6,7 @@
 from dataclasses import dataclass
 
 import numpy as np
+from asl_tb3_lib.grids import StochOccupancyGrid2D
 from asl_tb3_lib . math_utils import wrap_angle
 from asl_tb3_lib . navigation import (
     BaseNavigator,
@@ -13,7 +14,9 @@ from asl_tb3_lib . navigation import (
     TurtleBotControl,
     TurtleBotState,
 )
-from scipy.interpolate import splev
+from scipy.interpolate import splev, splrep
+
+from a_star import AStar
 
 # from asl_tb3_lib . tf_utils import quaternion_to_yaw
 
@@ -39,16 +42,21 @@ V_PREV_THRES = 0.0001
 
 @dataclass
 class NavigatorParams:
+    V_max: float = 0.5
+    om_max: float = 1.0
+    
+    # Heading Control
     kp_theta: float
     
     # Differential Flatness Control
     kp_x: float
     kd_x: float
     kp_y: float
-    kd_x: float
+    kd_y: float
 
-    V_max: float = 0.5
-    om_max: float = 1.0
+    # AStar Control
+    v_desired: float
+    spline_alpha: float
 
 
 class Navigator(BaseNavigator):
@@ -62,11 +70,14 @@ class Navigator(BaseNavigator):
         super().__init__("navigator")
 
         if params is None:
-            params = NavigatorParams(kp_theta=2.0)
+            params = NavigatorParams(
+                kp_theta = 2.0,
+                v_desired = 0.15,
+                spline_alpha = 0.05
+                )
         self.params = params
         self.v_prev_thresh = v_prev_thresh
 
-        # Resets trajectory and previous control memory
         self.reset()
         
     ##### Helpers #####
@@ -84,23 +95,25 @@ class Navigator(BaseNavigator):
         self.traj_time = traj_time
         self.plan = plan
     
-    def get_desired_flatness_vals(self, t: float) -> tuple[np.ndarray, np.ndarray, np.ndarray,
+    @staticmethod
+    def get_flatness_values(t: float, plan: TrajectoryPlan) -> tuple[np.ndarray, np.ndarray, np.ndarray,
                                                     np.ndarray, np.ndarray, np.ndarray]:
         """
         Input:
             t: Current time
+            plan: TrajectoryPlan
         Output:
             x_d, xd_d, xdd_d, y_d, yd_d, ydd_d: Desired state and derivatives
                 at time t according to spline
         """
         
-        x_d = splev(t, self.plan.path_x_spline, der=0)
-        xd_d = splev(t, self.plan.path_x_spline, der=1)
-        xdd_d = splev(t, self.plan.path_x_spline, der=2)
+        x_d = splev(t, plan.path_x_spline, der=0)
+        xd_d = splev(t, plan.path_x_spline, der=1)
+        xdd_d = splev(t, plan.path_x_spline, der=2)
         
-        y_d = splev(t, self.plan.path_y_spline, der=0)
-        yd_d = splev(t, self.plan.path_y_spline, der=1)
-        ydd_d = splev(t, self.plan.path_y_spline, der=2)
+        y_d = splev(t, plan.path_y_spline, der=0)
+        yd_d = splev(t, plan.path_y_spline, der=1)
+        ydd_d = splev(t, plan.path_y_spline, der=2)
 
         return x_d, xd_d, xdd_d, y_d, yd_d, ydd_d
         
@@ -122,25 +135,30 @@ class Navigator(BaseNavigator):
         
         return msg
     
-    def compute_trajectory_tracking_control(self, x: float, y: float, th: float, t: float) -> tuple[float, float]:
+    def compute_trajectory_tracking_control(self,
+        state: TurtleBotState,
+        plan: TrajectoryPlan,
+        t: float,
+    ) -> TurtleBotControl:
         
         dt = t - self.t_prev
-        x_d, xd_d, xdd_d, y_d, yd_d, ydd_d = self.get_desired_flatness_vals(t)
+        x_d, xd_d, xdd_d, y_d, yd_d, ydd_d = self.get_flatness_values(t, plan)
         
         if abs(self.v_prev) < self.v_prev_thresh:
             self.v_prev = self.v_prev_thresh
             
-        xd_prev = self.v_prev*np.cos(th)
-        yd_prev = self.v_prev*np.sin(th)
+        
+        xd_prev = self.v_prev*np.cos(state.theta)
+        yd_prev = self.v_prev*np.sin(state.theta)
         
         # compute virtual controls
-        u = np.array([xdd_d + self.params.kp_x*(x_d-x) + self.params.kp_y*(xd_d-xd_prev),
-                      ydd_d + self.params.kd_x*(y_d-y) + self.params.kd_y*(yd_d-yd_prev)])
+        u = np.array([xdd_d + self.params.kp_x*(x_d-state.x) + self.params.kp_y*(xd_d-xd_prev),
+                      ydd_d + self.params.kd_x*(y_d-state.y) + self.params.kd_y*(yd_d-yd_prev)])
         
         # compute real controls by mapping what we can do to our ideal controls
         # by differentiating dynamics again and then mapping [a,om] to [xdd, ydd]
-        J = np.array([[np.cos(th), -self.v_prev*np.sin(th)],
-                          [np.sin(th), self.v_prev*np.cos(th)]])
+        J = np.array([[np.cos(state.theta), -self.v_prev*np.sin(state.theta)],
+                          [np.sin(state.theta), self.v_prev*np.cos(state.theta)]])
         a, om = np.linalg.solve(J, u)
         vel = self.v_prev + a*dt
         
@@ -148,7 +166,75 @@ class Navigator(BaseNavigator):
         self.v_prev = vel
         self.om_prev = om
         
+        msg = TurtleBotControl()
+        msg.v = vel
+        msg.omega = om
+        
         return vel, om
+    
+    def compute_trajectory_plan(self,
+        state: TurtleBotState,
+        goal: TurtleBotState,
+        occupancy: StochOccupancyGrid2D,
+        resolution: float,
+        horizon: float,
+    ) -> TrajectoryPlan | None:
+        
+        # not sure what to do for now
+        # From notebook
+        v_desired = 0.15
+        spline_alpha = 0.05 
+        
+        # Run A* using horizon, state, goal, occupancy, and resolution
+        grid_size = occupancy.size_xy
+        x_init = (state.x, state.y)
+        x_goal=(goal.x, goal.y)
+        statespace_lo=(0,0)
+        statespace_hi=grid_size
+        
+        a_star = AStar(statespace_lo, statespace_hi,
+                       x_init,
+                       x_goal,
+                       occupancy,
+                       resolution,
+                       horizon,
+                       heuristic="l2",  # explicitly shown
+                       heuristic_weight=1  # explicitly shown
+            )
+        
+        # Solvability
+        if not a_star.solve():
+            print("No path found")
+            return None
+        if len(a_star.path) < 4:
+            print(f"Solution ({len(a_star.path)} nodes) too short")
+            return None
+
+        # Reset control memory
+        self.reset()
+
+        # Path time
+        path_length = np.sum(np.linalg.norm(np.diff(a_star.path, axis=0), axis=1))
+        tspan = path_length / v_desired
+        n_steps = len(a_star.path)
+        t_arr = np.linspace(0, tspan, n_steps)
+        
+        path_x_spline = splrep(t_arr, a_star.path[:,0], k = 3, s = spline_alpha)
+        path_y_spline = splrep(t_arr, a_star.path[:,1], k = 3, s = spline_alpha)
+
+        return TrajectoryPlan(
+            path=a_star.path,
+            path_x_spline=path_x_spline,
+            path_y_spline=path_y_spline,
+            duration=tspan,
+        )
+        
+        
+        
+        # Unsolvable
+        #  if A* problem is not solvable or length of path < 4 then
+        # 3: return None
+        # 4: end if
         
 
         
