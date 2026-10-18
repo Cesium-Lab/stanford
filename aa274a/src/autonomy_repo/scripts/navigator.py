@@ -11,6 +11,7 @@ from asl_tb3_lib . navigation import (
     TurtleBotControl,
     TurtleBotState,
 )
+import rclpy
 from scipy.interpolate import splev, splrep
 
 from a_star import AStar
@@ -39,21 +40,23 @@ V_PREV_THRES = 0.0001
 
 @dataclass
 class NavigatorParams:
-    V_max: float = 0.5
-    om_max: float = 1.0
     
     # Heading Control
-    kp_theta: float
+    kp_theta: float = 2.0
     
     # Differential Flatness Control
-    kp_x: float
-    kd_x: float
-    kp_y: float
-    kd_y: float
+    kp_x: float = 0
+    kd_x: float = 0
+    kp_y: float = 0
+    kd_y: float = 0
 
     # AStar Control
-    v_desired: float
-    spline_alpha: float
+    v_desired: float = 0.15
+    spline_alpha: float = 0.05
+    
+    # Normal
+    V_max: float = 0.5
+    om_max: float = 1.0
 
 
 class Navigator(BaseNavigator):
@@ -66,13 +69,7 @@ class Navigator(BaseNavigator):
         # give it a default node name
         super().__init__("navigator")
 
-        if params is None:
-            params = NavigatorParams(
-                kp_theta = 2.0,
-                v_desired = 0.15,
-                spline_alpha = 0.05
-                )
-        self.params = params
+        self.params = params if params is not None else NavigatorParams()
         self.v_prev_thresh = v_prev_thresh
 
         self.reset()
@@ -233,7 +230,12 @@ class Navigator(BaseNavigator):
         # 3: return None
         # 4: end if
         
-
+if __name__ == "__main__":
+    rclpy.init()
+    
+    navigator = Navigator()
+    rclpy.spin(navigator)
+    rclpy.shutdown()
         
         
         
