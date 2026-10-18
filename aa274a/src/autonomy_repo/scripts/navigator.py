@@ -3,10 +3,17 @@
 # import rclpy
 # from rclpy.node import Node
 
-from asl_tb3_lib . math_utils import wrap_angle
-from asl_tb3_lib . navigation import BaseNavigator, TurtleBotControl, TurtleBotState, TrajectoryPlan
 from dataclasses import dataclass
+
 import numpy as np
+from asl_tb3_lib . math_utils import wrap_angle
+from asl_tb3_lib . navigation import (
+    BaseNavigator,
+    TrajectoryPlan,
+    TurtleBotControl,
+    TurtleBotState,
+)
+from scipy.interpolate import splev
 
 # from asl_tb3_lib . tf_utils import quaternion_to_yaw
 
@@ -33,9 +40,12 @@ V_PREV_THRES = 0.0001
 @dataclass
 class NavigatorParams:
     kp_theta: float
-    kp_v: float
-    kd_theta: float
-    kd_v: float
+    
+    # Differential Flatness Control
+    kp_x: float
+    kd_x: float
+    kp_y: float
+    kd_x: float
 
     V_max: float = 0.5
     om_max: float = 1.0
@@ -65,30 +75,32 @@ class Navigator(BaseNavigator):
         self.traj_time = None
         self.traj = None
         
-        self.V_prev = 0.0
         self.t_prev = 0.0
-        # self.om_prev = 0.
-        # self.t_prev = 0.
+        self.v_prev = 0.0
+        self.om_prev = 0.0
     
-    def load_traj(self, traj_time: np.ndarray, traj: TrajectoryPlan) -> None:
+    def load_traj(self, traj_time: np.ndarray, plan: TrajectoryPlan) -> None:
         """ Loads in a new trajectory to follow, and resets the time """
         self.traj_time = traj_time
-        self.plan = traj
+        self.plan = plan
     
-    def get_desired_state(self, t: float) -> tuple[np.ndarray, np.ndarray, np.ndarray,
+    def get_desired_flatness_vals(self, t: float) -> tuple[np.ndarray, np.ndarray, np.ndarray,
                                                     np.ndarray, np.ndarray, np.ndarray]:
         """
         Input:
             t: Current time
         Output:
             x_d, xd_d, xdd_d, y_d, yd_d, ydd_d: Desired state and derivatives
-                at time t according to self.coeffs
+                at time t according to spline
         """
         
-        if self.traj_time is None or self.traj is None:
-            raise RuntimeError("Must load trajectory first")
+        x_d = splev(t, self.plan.path_x_spline, der=0)
+        xd_d = splev(t, self.plan.path_x_spline, der=1)
+        xdd_d = splev(t, self.plan.path_x_spline, der=2)
         
-        x_d, xd_d, xdd_d, y_d, yd_d, ydd_d = self.plan.desired_state(t)
+        y_d = splev(t, self.plan.path_y_spline, der=0)
+        yd_d = splev(t, self.plan.path_y_spline, der=1)
+        ydd_d = splev(t, self.plan.path_y_spline, der=2)
 
         return x_d, xd_d, xdd_d, y_d, yd_d, ydd_d
         
@@ -113,7 +125,31 @@ class Navigator(BaseNavigator):
     def compute_trajectory_tracking_control(self, x: float, y: float, th: float, t: float) -> tuple[float, float]:
         
         dt = t - self.t_prev
-        x_d, xd_d, xdd_d, y_d, yd_d, ydd_d = self.get_desired_state(t)
+        x_d, xd_d, xdd_d, y_d, yd_d, ydd_d = self.get_desired_flatness_vals(t)
+        
+        if abs(self.v_prev) < self.v_prev_thresh:
+            self.v_prev = self.v_prev_thresh
+            
+        xd_prev = self.v_prev*np.cos(th)
+        yd_prev = self.v_prev*np.sin(th)
+        
+        # compute virtual controls
+        u = np.array([xdd_d + self.params.kp_x*(x_d-x) + self.params.kp_y*(xd_d-xd_prev),
+                      ydd_d + self.params.kd_x*(y_d-y) + self.params.kd_y*(yd_d-yd_prev)])
+        
+        # compute real controls by mapping what we can do to our ideal controls
+        # by differentiating dynamics again and then mapping [a,om] to [xdd, ydd]
+        J = np.array([[np.cos(th), -self.v_prev*np.sin(th)],
+                          [np.sin(th), self.v_prev*np.cos(th)]])
+        a, om = np.linalg.solve(J, u)
+        vel = self.v_prev + a*dt
+        
+        # Control limit handled by base navigator class
+        self.v_prev = vel
+        self.om_prev = om
+        
+        return vel, om
+        
 
         
         
