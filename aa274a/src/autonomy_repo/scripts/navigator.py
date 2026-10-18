@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-# import rclpy
-# from rclpy.node import Node
-
 from dataclasses import dataclass
 
 import numpy as np
