@@ -7,6 +7,8 @@
 venv
 .venv
 
+.ruff_cache
+
 # 274a
 aa274a/build
 aa274a/install
