@@ -65,28 +65,20 @@ def pose_from_homography(K, H):
           replace [r0, r1, r0 x r1] by the closest rotation matrix (SVD).
     """
     ########## Code starts here ##########
-    KH = np.linalg.inv(K) @ H
+    KH = np.linalg.solve(K, H)
     KH = KH / np.linalg.norm(KH[:,0]) * np.sign(KH[2,2])
-    # print(np.linalg.norm(KH[:,0]))
-    # print(np.linalg.norm(KH[:,1]))
-    # print(np.linalg.norm(KH[:,2]))
-    # print(KH)
+
     r0 = KH[:,0]
     r1 = KH[:,1]
     r2 = np.cross(r0, r1)
-    # _, _, h_stack = np.linalg.svd(M)
-    U,S,V =  np.linalg.svd(np.vstack((r0,r1,r2)).T)
-
+    R = np.vstack((r0,r1,r2)).T
+   
+    # Make it an actual rotation (due to noise)
+    U,S,V =  np.linalg.svd(R)
     R = U @ np.diag((1,1,np.linalg.det(U@V))) @ V
 
     t = KH[:,2]
-    
-    print(R)
-    print(t)
-    
-    # r1 = KH[:,1]
-    # raise NotImplementedError
-    # R,t = None, None
+
     ########## Code ends here ##########
     return R, t
 
@@ -100,16 +92,28 @@ def project_points(K: np.ndarray, R: np.ndarray, t: np.ndarray, X: np.ndarray):
         (N, 2) pixel coordinates (u, v)
     """
     ########## Code starts here ##########
-    P_prime = X @ R + t
-    return P_prime[:,:2] / P_prime[0,2]
+    
+    # Left multiplied because X vector is transposed
+    P_prime = X @ R.T + t  # (N,3)
+    uv = P_prime @ K.T
+    uv_prime = np.apply_along_axis(lambda x: x[:2] / x[2], 1, uv)
+    
+    return uv_prime  # (N,2)
     ########## Code ends here ##########
 
 
-def reprojection_rmse(uv, uv_proj):
+def reprojection_rmse(uv: np.ndarray, uv_proj: np.ndarray):
     """
     Output:
         Root-mean-square pixel distance between (N, 2) arrays uv and uv_proj
     """
     ########## Code starts here ##########
-    raise NotImplementedError
+    # https://en.wikipedia.org/wiki/Root_mean_square_deviation
+    
+    N = uv.shape[0]
+    
+    squared_err = np.linalg.norm(uv - uv_proj, axis=1)**2
+    rmse = np.sqrt(np.sum(squared_err) / N)
+    
+    return rmse
     ########## Code ends here ##########
