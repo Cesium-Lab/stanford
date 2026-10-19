@@ -18,7 +18,9 @@ def nearest_neighbors(src, dst):
     HINT: build a scipy.spatial.cKDTree on dst once and query it.
     """
     ########## Code starts here ##########
-    raise NotImplementedError
+    tree = cKDTree(dst)
+    dist,idx = tree.query(src)
+        # raise NotImplementedError
     ########## Code ends here ##########
     return dist, idx
 
@@ -27,6 +29,7 @@ def best_fit_transform(A, B):
     """
     Least-squares rigid transform mapping corresponding points A onto B,
     i.e. minimizing sum_i ||R a_i + t - b_i||^2.
+    
     Inputs:
         A, B: (N, 3) corresponding points
     Output:
@@ -36,14 +39,34 @@ def best_fit_transform(A, B):
           flip the sign of the last singular direction if det(R) < 0.
     """
     ########## Code starts here ##########
-    raise NotImplementedError
+    a_bar = np.mean(A, axis=0)
+    b_bar = np.mean(B, axis=0)
+    A_bar = np.asarray(A) - a_bar  # (N,3)
+    B_bar = np.asarray(B) - b_bar  # (N,3)
+    
+    U, _, Vt = np.linalg.svd(A_bar.T @ B_bar)  # Transposed other way to get (3,3)
+    R = U @ np.diag((1,1,np.linalg.det(U@Vt))) @ Vt
+    if np.linalg.det(R) < 0:
+        Vt[-1, :] *= -1
+        R = U @ np.diag((1,1,np.linalg.det(U@Vt))) @ Vt
+
+        
+
+    t = b_bar - a_bar@R
+    
+    T = np.eye(4)
+    T[:3,:3] = R.T  # Because row and column flipped
+    T[:3,3] = t
+    
     ########## Code ends here ##########
     return T
 
 
-def icp(src, dst, T_init, max_iters=50, tol=1e-6, reject_dist=None):
+def icp(src: np.ndarray, dst: np.ndarray, T_init: np.ndarray,
+        max_iters=50, tol=1e-6, reject_dist=None):
     """
     Point-to-point ICP aligning src to dst.
+    
     Inputs:
         src: (N, 3) source points, dst: (M, 3) target points
         T_init: (4, 4) initial guess for the transform from src to dst
@@ -63,6 +86,28 @@ def icp(src, dst, T_init, max_iters=50, tol=1e-6, reject_dist=None):
     T = T_init.copy()
     errors = []
     ########## Code starts here ##########
-    raise NotImplementedError
+    
+    src_pose = np.column_stack([src, np.ones(len(src))])
+    
+    for i in range(max_iters):
+        src_prime = src_pose @ T.T  # (N,4)
+        dist, idx = nearest_neighbors(src_prime[:,:3], dst)
+        
+        errors.append(np.mean(dist))
+        if errors[-1] < tol:
+            break
+        
+        # Outlier Rejection
+        if reject_dist is None:
+            A = src_prime[:,:3]
+        else:
+            idx = idx[dist < reject_dist]
+            A = src_prime[dist < reject_dist,:3]
+        dT = best_fit_transform(A, dst[idx])
+        
+        T = dT@T
+
+        
+    # raise NotImplementedError
     ########## Code ends here ##########
     return T, errors

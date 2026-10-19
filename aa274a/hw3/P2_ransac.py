@@ -65,11 +65,7 @@ def ransac_homography(world_xy, uv, num_iters, threshold, rng: np.random.Generat
         #  2. Compute H and get residual
         H = compute_homography(xy_sample, uv_sample)
         resid = homography_residuals(H, world_xy, uv)  # (N,)
-        # resid = homography_residuals(H, xy_sample, uv_sample)  # (N,)
-        
-        # print(resid)
-        
-        # raise NotImplementedError
+
         if inliers is None or np.sum(resid < threshold) > np.sum(inliers):
             inliers = resid < threshold
             
