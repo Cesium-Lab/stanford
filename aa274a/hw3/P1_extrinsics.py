@@ -21,7 +21,7 @@ def checkerboard_points(nx, ny, square_size: float):
     ########## Code ends here ##########
 
 
-def compute_homography(world_xy, uv):
+def compute_homography(world_xy, uv) -> np.ndarray:
     """
     Homography H with [u, v, 1]^T ~ H [X, Y, 1]^T, estimated with the DLT and the SVD.
     Inputs:
@@ -31,12 +31,23 @@ def compute_homography(world_xy, uv):
         (3, 3) homography, scaled so that H[2, 2] = 1
     """
     ########## Code starts here ##########
-    xy_full = np.hstack((uv, np.ones_like(world_xy[:,0])))
-    uv_full = np.hstack((uv, np.ones_like(uv[:,0])))
+    rows = []
     
-    print(xy_full.shape)
-    print(uv_full.shape)
-    raise NotImplementedError
+    for _xy,_uv in zip(world_xy, uv):
+        rows.append([-_xy[0], -_xy[1], -1, 0,       0,       0,    _uv[0]*_xy[0], _uv[0]*_xy[1], _uv[0]])
+        rows.append([0,       0,       0,  -_xy[0], -_xy[1], -1,   _uv[1]*_xy[0], _uv[1]*_xy[1], _uv[1]])
+        
+    M = np.array(rows)
+    
+    # svd
+    # 2. Compute the Singular Value Decomposition (SVD)
+    _, _, h_stack = np.linalg.svd(M)
+    
+    # Smallest singular value (and scaled)
+    H = h_stack[-1].reshape(3,3)
+    H = H / H[2,2]
+
+    return H
     ########## Code ends here ##########
 
 
@@ -54,8 +65,28 @@ def pose_from_homography(K, H):
           replace [r0, r1, r0 x r1] by the closest rotation matrix (SVD).
     """
     ########## Code starts here ##########
-    raise NotImplementedError
-    R,t = None, None
+    KH = np.linalg.inv(K) @ H
+    KH = KH / np.linalg.norm(KH[:,0]) * np.sign(KH[2,2])
+    # print(np.linalg.norm(KH[:,0]))
+    # print(np.linalg.norm(KH[:,1]))
+    # print(np.linalg.norm(KH[:,2]))
+    # print(KH)
+    r0 = KH[:,0]
+    r1 = KH[:,1]
+    r2 = np.cross(r0, r1)
+    # _, _, h_stack = np.linalg.svd(M)
+    U,S,V =  np.linalg.svd(np.vstack((r0,r1,r2)).T)
+
+    R = U @ np.diag((1,1,np.linalg.det(U@V))) @ V
+
+    t = KH[:,2]
+    
+    print(R)
+    print(t)
+    
+    # r1 = KH[:,1]
+    # raise NotImplementedError
+    # R,t = None, None
     ########## Code ends here ##########
     return R, t
 
