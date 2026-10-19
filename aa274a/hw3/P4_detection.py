@@ -12,7 +12,29 @@ def box_iou(a, b):
     HINT: broadcast a[:, None, :] against b[None, :, :]; no for-loops needed.
     """
     ########## Code starts here ##########
-    raise NotImplementedError
+    
+    # Did in fact use chat for broadcasting here
+    b1 = a[:, None, :]
+    b2 = b[None, :, :]
+        
+    # 
+    x_left = np.maximum(b1[...,0], b2[...,0])
+    y_bottom = np.maximum(b1[...,1], b2[...,1])
+    x_right = np.minimum(b1[...,2], b2[...,2])
+    y_top = np.minimum(b1[...,3], b2[...,3])
+    
+    width = np.maximum(0, x_right - x_left)
+    height = np.maximum(0, y_top - y_bottom)
+    box = width*height
+    
+    A1 = (b1[...,2]-b1[...,0])*(b1[...,3]-b1[...,1])
+    A2 = (b2[...,2]-b2[...,0])*(b2[...,3]-b2[...,1])
+    
+    union = A1 + A2 - box
+
+    return np.divide(box, union,
+                        out=np.zeros_like(box, dtype=float), 
+                        where=union > 0)
     ########## Code ends here ##########
 
 
@@ -26,7 +48,24 @@ def nms(boxes, scores, iou_threshold):
         (K,) integer indices of the kept boxes, sorted by decreasing score
     """
     ########## Code starts here ##########
-    raise NotImplementedError
+    
+    idx_ordered = np.argsort(scores, descending=True)
+    
+    F = []
+
+    while len(idx_ordered) > 0:
+    
+        idx = idx_ordered[0]
+        F.append(idx)
+        
+        remaining = idx_ordered[1:]
+
+        ious = box_iou(boxes[idx:idx+1], boxes[remaining]).reshape(-1)
+
+        # Remove boxes exceeding IoU threshold
+        idx_ordered = remaining[ious <= iou_threshold]
+        
+    return np.array(F, dtype=int)
     ########## Code ends here ##########
 
 
