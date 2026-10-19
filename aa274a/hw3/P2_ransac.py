@@ -11,7 +11,15 @@ def homography_residuals(H, world_xy, uv):
         (N,) pixel distance between uv and the projection of world_xy through H
     """
     ########## Code starts here ##########
-    raise NotImplementedError
+    
+    world_xyz = np.column_stack([world_xy, np.ones(len(world_xy))])
+    world_uvw = (world_xyz @ H.T)
+    
+    world_uv_prime = np.apply_along_axis(lambda x: x[:2] / x[2], 1, world_uvw)
+    
+    resid_px = np.linalg.norm(uv - world_uv_prime, axis=1)
+    
+    return resid_px
     ########## Code ends here ##########
 
 
@@ -23,11 +31,12 @@ def ransac_num_iterations(p, w, s):
         int, rounded up
     """
     ########## Code starts here ##########
-    raise NotImplementedError
+    N =  np.ceil( np.log(1 - p) / np.log(1 - w**s) )
+    return int(N)
     ########## Code ends here ##########
 
 
-def ransac_homography(world_xy, uv, num_iters, threshold, rng):
+def ransac_homography(world_xy, uv, num_iters, threshold, rng: np.random.Generator):
     """
     Robust homography estimate with RANSAC.
     Inputs:
@@ -44,6 +53,35 @@ def ransac_homography(world_xy, uv, num_iters, threshold, rng):
     """
     N = len(uv)
     ########## Code starts here ##########
-    raise NotImplementedError
+
+    inliers = None
+    
+    for i in range(num_iters):
+        #  1. Sample 
+        rand_idx = rng.choice(N, 4, replace=False)
+        xy_sample = world_xy[rand_idx]
+        uv_sample = uv[rand_idx]
+        
+        #  2. Compute H and get residual
+        H = compute_homography(xy_sample, uv_sample)
+        resid = homography_residuals(H, world_xy, uv)  # (N,)
+        # resid = homography_residuals(H, xy_sample, uv_sample)  # (N,)
+        
+        # print(resid)
+        
+        # raise NotImplementedError
+        if inliers is None or np.sum(resid < threshold) > np.sum(inliers):
+            inliers = resid < threshold
+            
+    # calculate inliers
+    H = compute_homography(
+        world_xy[inliers],
+        uv[inliers])
+    
+    resid = homography_residuals(H, world_xy, uv)  # (N,)
+    
+        
+        
+    
     ########## Code ends here ##########
     return H, inliers
