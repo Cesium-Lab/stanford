@@ -8,8 +8,85 @@ from lamberthub import vallado2013
 import plotly.graph_objects as go
 from tqdm import tqdm
 
-from constants import DEG_TO_RAD, MU_EARTH, W_EARTH, R_EARTH
+from constants import DEG_TO_RAD, MU_EARTH, W_EARTH, R_EARTH, AU_TO_KM, MU_SUN
 from angle import dcm_x, dcm_z
+from spacetime import greg_to_jd
+from matlab.engine import MatlabEngine
+
+
+
+class OrbitalFlyby:
+    def __init__(self, name: str, datetime_ymdhms_utc: tuple[int,int,int,int,int,float], planet_num: int = None):
+        self.name = name
+        self.date = datetime_ymdhms_utc
+        self.planet_num = planet_num
+        self.jd = greg_to_jd(*datetime_ymdhms_utc)
+        
+        self.hyperbolic_turning_angle = None
+        self.hyperbolic_eccentricity = None
+        
+        self.v_departure_HCI, self.v_arrival_HCI = None, None
+        self.v_departure_PCI, self.v_arrival_PCI = None, None
+    
+    def add_rv_HCI(self, r_HCI: np.ndarray, v_HCI: np.ndarray):
+        self.r_HCI, self.v_HCI = r_HCI, v_HCI
+        
+def rv_HCI(planet_num: int, jd: float, eng: MatlabEngine):
+    """Heliocentric position and velocity using https://ssd.jpl.nasa.gov/planets/approx_pos.html
+
+    From `AA279j2000_planetary_elements` matlab:
+    elements:  row vector of J2000 orbital elements for "planet_id"
+    - a             semimajor axis [AU]
+    - e             eccentricity
+    - i             inclination [deg]
+    - OMEGA         longitude of the ascending node [deg]
+    - omega_bar     longitude of perihelion [deg]
+    - L             mean longitude [deg]      
+
+    Parameters
+    ----------
+    planet_num : int
+        1 (Mercury) to 9 (Pluto) BUT further ones beyond Mars technically require more coefficients
+    jd : float
+        Julian Date
+        
+    Returns
+    ----------
+    r_HCI : np.ndarray (3,)
+        Heliocentric position
+    v_HCI : np.ndarray (3,)
+        Heliocentric velocity
+    """
+    
+    assert planet_num >= 1
+    assert planet_num <= 9
+
+    tt_jd = (jd - 2451545.0) / 36525.0
+    
+    elements, rates = eng.AA279j2000_planetary_elements(planet_num, nargout=2)
+    
+    
+    #  1. Value of six elements (angles in degrees)
+    a_au, e, i_deg, raan_deg, w_bar_deg, L_deg = [
+        x + dx*tt_jd for x,dx in zip(elements[0], rates[0])
+    ]
+    
+    #  2. aop and M
+    aop = (w_bar_deg - raan_deg) * DEG_TO_RAD
+    M = (L_deg - w_bar_deg) * DEG_TO_RAD
+    
+    #  Just solve (from prev homework)
+    r_HCI, v_HCI = rv_from_coe(
+        a = a_au * AU_TO_KM,
+        e = e,
+        i = i_deg * DEG_TO_RAD,
+        raan = raan_deg * DEG_TO_RAD,
+        aop = aop,
+        M = M,
+        mu = MU_SUN
+    )
+    
+    return r_HCI, v_HCI
 
 def kepler(M: float, e: float):
     """Vallado 4e eq. 2-4 p. 45 (pdf p. 72)
