@@ -51,7 +51,7 @@ def rv_from_coe(a: float, e: float, i: float, raan: float, aop: float, M: float,
 
     Returns
     -------
-    r_ijk, v_ijk : np.ndarray (3,)
+    r_I, v_I : np.ndarray (3,)
         Inertial position [km] and velocity [km/s]
     """
 
@@ -62,21 +62,21 @@ def rv_from_coe(a: float, e: float, i: float, raan: float, aop: float, M: float,
 
     # true anomaly - Vallado 4e. eq. 2-10 p. 47 (pdf p. 74)
     nu = 2 * np.arctan2(np.sqrt(1 + e) * np.sin(E / 2), np.sqrt(1 - e) * np.cos(E / 2))
-    r_pqw = np.array([p * np.cos(nu), p * np.sin(nu), 0]) / (1 + e * np.cos(nu))
+    r_PQW = np.array([p * np.cos(nu), p * np.sin(nu), 0]) / (1 + e * np.cos(nu))
 
-    v_pqw = np.array([-np.sin(nu), e + np.cos(nu), 0]) * np.sqrt(mu / p)
+    v_PQW = np.array([-np.sin(nu), e + np.cos(nu), 0]) * np.sqrt(mu / p)
 
-    dcm_ijk_wrt_pqw = dcm_z(-raan) @ dcm_x(-i) @ dcm_z(-aop)
-    r_ijk = dcm_ijk_wrt_pqw @ r_pqw
-    v_ijk = dcm_ijk_wrt_pqw @ v_pqw
+    dcm_I_wrt_PQW = dcm_z(-raan) @ dcm_x(-i) @ dcm_z(-aop)
+    r_I = dcm_I_wrt_PQW @ r_PQW
+    v_I = dcm_I_wrt_PQW @ v_PQW
 
-    return r_ijk, v_ijk
+    return r_I, v_I
 
 ###########################################################################
 #                   PCPF <--> LLA
 ###########################################################################
 
-def pcpf_from_lla(lat: float, lon: float, alt_km = 0.0, r_body_km = R_EARTH, deg = True):
+def PCPF_from_lla(lat: float, lon: float, alt_km = 0.0, r_body_km = R_EARTH, deg = True):
     """Convert latitude, longitude, and altitude to planet-centered, planet-fixed.
     Spherical body.
 
@@ -93,7 +93,7 @@ def pcpf_from_lla(lat: float, lon: float, alt_km = 0.0, r_body_km = R_EARTH, deg
 
     Returns
     -------
-    r_pcpf : np.ndarray (3,)
+    r_PCPF : np.ndarray (3,)
         Body-fixed position [km]
     """
     if deg:
@@ -102,13 +102,13 @@ def pcpf_from_lla(lat: float, lon: float, alt_km = 0.0, r_body_km = R_EARTH, deg
         
     rho = r_body_km + alt_km
     
-    r_pcpf = np.array([
+    r_PCPF = np.array([
         rho * np.cos(lat) * np.cos(lon),
         rho * np.cos(lat) * np.sin(lon),
         rho * np.sin(lat)
     ])
     
-    return r_pcpf
+    return r_PCPF
 
 ###########################################################################
 #                   PCI <--> PCPF
@@ -133,7 +133,7 @@ def calc_theta_g(t_utc: float, theta_ref: float, t_ref: float, w_body = W_EARTH)
     """
     return (theta_ref + w_body * (t_utc - t_ref)) % (2 * np.pi)
 
-def calc_pci_from_pcpf(r_pcpf: np.ndarray, v_pcpf: np.ndarray, t_utc: float, theta_ref: float, t_ref: float, w_body = W_EARTH):
+def calc_PCI_from_PCPF(r_PCPF: np.ndarray, v_PCPF: np.ndarray, t_utc: float, theta_ref: float, t_ref: float, w_body = W_EARTH):
     """Convert rotating-frame position and velocity to inertial coordinates.
     
     Somewhat simplified version of itrf-gcrs in Vallado 4e Section 3.7 pp. 203
@@ -142,7 +142,7 @@ def calc_pci_from_pcpf(r_pcpf: np.ndarray, v_pcpf: np.ndarray, t_utc: float, the
 
     Parameters
     ----------
-    r_pcpf, v_pcpf : np.ndarray (3,)
+    r_PCPF, v_PCPF : np.ndarray (3,)
         Position [km] and rotating-frame velocity [km/s]
     t_utc, t_ref : float
         Current and reference UTC timestamps [s]
@@ -153,24 +153,24 @@ def calc_pci_from_pcpf(r_pcpf: np.ndarray, v_pcpf: np.ndarray, t_utc: float, the
 
     Returns
     -------
-    r_pci, v_pci : np.ndarray (3,)
+    r_PCI, v_PCI : np.ndarray (3,)
         Inertial position [km] and velocity [km/s]
     """
     # Earth rotation angle
-    theta_pcpf_wrt_pci = calc_theta_g(t_utc, theta_ref, t_ref, w_body)
+    theta_PCPF_wrt_PCI = calc_theta_g(t_utc, theta_ref, t_ref, w_body)
     
-    dcm_pci_wrt_pcpf = dcm_z(theta_pcpf_wrt_pci).T
+    dcm_PCI_wrt_PCPF = dcm_z(theta_PCPF_wrt_PCI).T
     
-    r_pci = dcm_pci_wrt_pcpf @ r_pcpf
-    v_pci = dcm_pci_wrt_pcpf @ (v_pcpf + np.cross([0,0,w_body], r_pcpf))
+    r_PCI = dcm_PCI_wrt_PCPF @ r_PCPF
+    v_PCI = dcm_PCI_wrt_PCPF @ (v_PCPF + np.cross([0,0,w_body], r_PCPF))
     
-    return r_pci, v_pci
+    return r_PCI, v_PCI
 
 ###########################################################################
 #                   PCI <--> LLA
 ###########################################################################
 
-def launch_pci(t_arr_utc: np.ndarray, lat: float, lon: float, alt: float, theta_ref: float, t_ref: float, r_body_km = R_EARTH, w_body = W_EARTH, deg = True):
+def launch_PCI(t_arr_utc: np.ndarray, lat: float, lon: float, alt: float, theta_ref: float, t_ref: float, r_body_km = R_EARTH, w_body = W_EARTH, deg = True):
     """Calculate inertial position and velocity of a stationary launch site over time on sphere
 
     Parameters
@@ -194,16 +194,16 @@ def launch_pci(t_arr_utc: np.ndarray, lat: float, lon: float, alt: float, theta_
 
     Returns
     -------
-    launch_r_pci, launch_v_pci : np.ndarray (N, 3)
+    launch_r_PCI, launch_v_PCI : np.ndarray (N, 3)
         Inertial positions [km] and velocities [km/s]
     """
-    launch_r_pcpf = pcpf_from_lla(lat, lon, alt, r_body_km, deg)
-    launch_v_pcpf = np.zeros(3)
+    launch_r_PCPF = PCPF_from_lla(lat, lon, alt, r_body_km, deg)
+    launch_v_PCPF = np.zeros(3)
     
-    launch_arr_pci = np.array([calc_pci_from_pcpf(launch_r_pcpf, launch_v_pcpf, t, theta_ref, t_ref, w_body) for t in t_arr_utc])
-    launch_r_pci = launch_arr_pci[:,0,:]
-    launch_v_pci = launch_arr_pci[:,1,:]
-    return launch_r_pci, launch_v_pci
+    launch_arr_PCI = np.array([calc_PCI_from_PCPF(launch_r_PCPF, launch_v_PCPF, t, theta_ref, t_ref, w_body) for t in t_arr_utc])
+    launch_r_PCI = launch_arr_PCI[:,0,:]
+    launch_v_PCI = launch_arr_PCI[:,1,:]
+    return launch_r_PCI, launch_v_PCI
 
 ###########################################################################
 #                   Sanity
