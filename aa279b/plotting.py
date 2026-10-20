@@ -57,8 +57,8 @@ def plot_3d(
 
     Returns
     -------
-    fig : go.Figure
-        Plotly figure.
+    fig : go.Figure | None
+        Plotly figure or nothing if `show=False`
     """
 
     fig = go.Figure()
@@ -244,6 +244,7 @@ def plot_3d(
 
     if show:
         fig.show()
+        return None
 
     return fig
 
