@@ -12,8 +12,8 @@ DEG_TO_RAD = np.pi/180.0
 RAD_TO_DEG = 1.0/DEG_TO_RAD
 RAD_TO_SIDEREAL_HOUR = 24.0/np.pi/2.0
 
-DAY_TO_SEC = 24.0 * 60.0 * 60.0
-MIN_TO_SEC = 60.0
+DAY_TO_SEC = 24 * 60 * 60
+MIN_TO_SEC = 60
 
 ###########################################################################
 #                   Planets
