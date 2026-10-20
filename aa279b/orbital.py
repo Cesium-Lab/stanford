@@ -11,7 +11,7 @@ from tqdm import tqdm
 from constants import DEG_TO_RAD, MU_EARTH, W_EARTH, R_EARTH
 from angle import dcm_x, dcm_z
 
-def kepler(M, e):
+def kepler(M: float, e: float):
     """Vallado 4e eq. 2-4 p. 45 (pdf p. 72)
 
     Parameters
@@ -33,7 +33,7 @@ def kepler(M, e):
 #                   RV <-- COE
 ###########################################################################
 
-def rv_from_coe(a, e, i, raan, aop, M, mu) -> tuple[np.ndarray, np.ndarray]:
+def rv_from_coe(a: float, e: float, i: float, raan: float, aop: float, M: float, mu: float) -> tuple[np.ndarray, np.ndarray]:
     """Convert classical orbital elements to inertial position and velocity (not just ECI)
     
     Vallado 4e Algorithm 10 p. 118 (pdf p. 145)
@@ -76,7 +76,7 @@ def rv_from_coe(a, e, i, raan, aop, M, mu) -> tuple[np.ndarray, np.ndarray]:
 #                   PCPF <--> LLA
 ###########################################################################
 
-def pcpf_from_lla(lat, lon, alt_km = 0, r_body_km = R_EARTH, deg = True):
+def pcpf_from_lla(lat: float, lon: float, alt_km = 0.0, r_body_km = R_EARTH, deg = True):
     """Convert latitude, longitude, and altitude to planet-centered, planet-fixed.
     Spherical body.
 
@@ -114,7 +114,7 @@ def pcpf_from_lla(lat, lon, alt_km = 0, r_body_km = R_EARTH, deg = True):
 #                   PCI <--> PCPF
 ###########################################################################
 
-def calc_theta_g(t_utc, theta_ref, t_ref, w_body = W_EARTH):
+def calc_theta_g(t_utc: float, theta_ref: float, t_ref: float, w_body = W_EARTH):
     """Simple rotation from Greenwich rotation angle assuming constant rotation rate.
 
     Parameters
@@ -133,7 +133,7 @@ def calc_theta_g(t_utc, theta_ref, t_ref, w_body = W_EARTH):
     """
     return (theta_ref + w_body * (t_utc - t_ref)) % (2 * np.pi)
 
-def calc_pci_from_pcpf(r_pcpf, v_pcpf, t_utc, theta_ref, t_ref, w_body = W_EARTH):
+def calc_pci_from_pcpf(r_pcpf: np.ndarray, v_pcpf: np.ndarray, t_utc: float, theta_ref: float, t_ref: float, w_body = W_EARTH):
     """Convert rotating-frame position and velocity to inertial coordinates.
     
     Somewhat simplified version of itrf-gcrs in Vallado 4e Section 3.7 pp. 203
@@ -170,7 +170,7 @@ def calc_pci_from_pcpf(r_pcpf, v_pcpf, t_utc, theta_ref, t_ref, w_body = W_EARTH
 #                   PCI <--> LLA
 ###########################################################################
 
-def launch_pci(t_arr_utc, lat, lon, alt, theta_ref, t_ref, r_body_km = R_EARTH, w_body = W_EARTH, deg = True):
+def launch_pci(t_arr_utc: np.ndarray, lat: float, lon: float, alt: float, theta_ref: float, t_ref: float, r_body_km = R_EARTH, w_body = W_EARTH, deg = True):
     """Calculate inertial position and velocity of a stationary launch site over time on sphere
 
     Parameters
