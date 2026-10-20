@@ -8,7 +8,7 @@ from lamberthub import vallado2013
 import plotly.graph_objects as go
 from tqdm import tqdm
 
-from constants import DEG_TO_RAD, MU_EARTH, W_EARTH, R_EARTH, AU_TO_KM, MU_SUN
+from constants import DEG_TO_RAD, MU_EARTH, W_EARTH, R_EARTH, AU_TO_KM, MU_SUN, ECLIPTIC_ANGLE, CTY_TO_DAY, J2000_JD
 from angle import dcm_x, dcm_z
 from spacetime import greg_to_jd
 from matlab.engine import MatlabEngine
@@ -61,7 +61,7 @@ def rv_HCI(planet_num: int, jd: float, eng: MatlabEngine):
     assert planet_num >= 1
     assert planet_num <= 9
 
-    tt_jd = (jd - 2451545.0) / 36525.0
+    tt_jd = (jd - J2000_JD) / CTY_TO_DAY
     
     elements, rates = eng.AA279j2000_planetary_elements(planet_num, nargout=2)
     
@@ -105,6 +105,21 @@ def kepler(M: float, e: float):
     """
     E = fsolve(lambda E: E - e * np.sin(E) - M, M)[0]
     return E
+
+def e_sp(r,v,mu):
+    """ez"""
+    return v*v/2 - mu/r
+###########################################################################
+#                   HCI <--> ECI
+###########################################################################
+
+def ECI_from_HCI():
+    """HCI to ICRF/J2000 ECI"""
+    return np.array(
+        [1, 0, 0],
+        [0, np.cos(ECLIPTIC_ANGLE), -np.sin(ECLIPTIC_ANGLE)],
+        [0, np.sin(ECLIPTIC_ANGLE), np.cos(ECLIPTIC_ANGLE)]
+    )
 
 ###########################################################################
 #                   RV <-- COE
