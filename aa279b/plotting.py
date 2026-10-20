@@ -8,7 +8,10 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.colors import qualitative
 from scipy.interpolate import CubicSpline
+import matplotlib.pyplot as plt
 
+from constants import AU_TO_KM
+from orbital import OrbitalFlyby
 
 def plot_3d(
     traces,
@@ -248,6 +251,63 @@ def plot_3d(
 
     return fig
 
+def plot_flybys(flybys: list[OrbitalFlyby], xlim = None, ylim = None):
+
+    colors = {
+        2: "orange",      # Venus
+        3: "royalblue",   # Earth
+        5: "brown",       # Jupiter
+        None: "green"     # Gaspra
+    }
+
+    fig, ax = plt.subplots(figsize=(9, 9))
+
+    # Plot Sun
+    ax.scatter(0, 0, color="gold", marker="o", s=100, label="Sun", zorder=5)
+
+    # Plot waypoints
+    for flyby in flybys:
+        
+        r = flyby.r_HCI / AU_TO_KM
+        ax.scatter(r[0], r[1], color=colors[flyby.planet_num], s=40, zorder=3)
+        
+        # Dumb dub dumb
+        name = flyby.name
+        if "Venus" in name:
+            ax.annotate(name, (r[0], r[1]),xytext=(-75, 6),textcoords="offset points",fontsize=9)
+        elif "Earth Swingby" not in name:
+            ax.annotate(name, (r[0], r[1]),xytext=(6, 6),textcoords="offset points",fontsize=9)
+        elif "#1" in name:
+            ax.annotate("Earth Swingbys", (r[0], r[1]),xytext=(6, 6),textcoords="offset points",fontsize=9)
+
+    ax.set_xlabel("Heliocentric X [AU]")
+    ax.set_ylabel("Heliocentric Y [AU]")
+    ax.set_title("Galileo Mission Waypoints")
+    ax.set_aspect("equal")
+    ax.grid(True, alpha=0.3)
+    
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+
+    ax.legend()
+
+    plt.tight_layout()
+
+def plot_hyperbolic_characteristics(flyby: OrbitalFlyby, color: str):
+    r = flyby.r_HCI[:2] / AU_TO_KM
+
+    scale = 0.2 / 40  # AU per (km/s)
+
+    v_in = flyby.v_arrival_HCI[:2] * scale
+    v_out = flyby.v_departure_HCI[:2] * scale
+
+    plt.arrow(*(r - v_in), *v_in,
+              width=0.005, color=color)
+
+    plt.arrow(*r, *v_out,
+              width=0.005, color=color)
 ###########################################################################
 #                   Examples
 ###########################################################################
