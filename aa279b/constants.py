@@ -7,11 +7,13 @@ import numpy as np
 ###########################################################################
 
 AU_TO_KM = 149597870.7  # km/AU
+M_TO_KM = 1.0/1000
 
 DEG_TO_RAD = np.pi/180.0
 RAD_TO_DEG = 1.0/DEG_TO_RAD
 RAD_TO_SIDEREAL_HOUR = 24.0/np.pi/2.0
 
+HOUR_TO_SEC = 60 * 60
 DAY_TO_SEC = 24 * 60 * 60
 MIN_TO_SEC = 60
 
