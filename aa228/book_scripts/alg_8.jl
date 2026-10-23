@@ -1,0 +1,6 @@
+# TODO: Algorithm 8.1 - ApproximateValueIteration (solve())
+# TODO: Algorithm 8.2 - NearestNeighborValueFunction (fit())
+# TODO: Algorithm 8.3 - LocallyWeightedValueFunction (fit())
+# TODO: Algorithm 8.4 - MultilinearValueFunction (fit())
+# TODO: Algorithm 8.5 - SimplexValueFunction (fit())
+# TODO: Algorithm 8.6 - LlinearRegressionValueFunction (fit()) (Neural Net) (optional)
