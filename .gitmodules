@@ -10,3 +10,6 @@
 	path = aa228/228-project-2-but-cooked
 	url = https://github.com/colin-skinner/228-project-2-but-cooked
 
+[submodule "aa273/horizon-op-nav"]
+	path = aa273/horizon-op-nav
+	url = https://github.com/colin-skinner/horizon-op-nav.git
