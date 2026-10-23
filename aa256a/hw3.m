@@ -70,5 +70,3 @@ fprintf('\nEffective Tensile Modulus E11:\n');
 for i = 1:N
     fprintf('Specimen %d: %.4f Msi\n', i, E11(i));
 end
-
-
