@@ -1,0 +1,12 @@
+[submodule "aa228/k2_but_cooked"]
+	path = aa228/k2_but_cooked
+	url = https://github.com/colin-skinner/k2_but_cooked
+
+[submodule "aa228/AA228-orbital-rendezvous"]
+	path = aa228/AA228-orbital-rendezvous
+	url = https://github.com/colin-skinner/AA228-orbital-rendezvous
+
+[submodule "aa228/228-project-2-but-cooked"]
+	path = aa228/228-project-2-but-cooked
+	url = https://github.com/colin-skinner/228-project-2-but-cooked
+
