@@ -1,0 +1,3 @@
+[submodule "aa273/horizon-op-nav"]
+	path = aa273/horizon-op-nav
+	url = https://github.com/colin-skinner/horizon-op-nav/tree/main
