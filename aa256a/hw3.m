@@ -35,80 +35,40 @@ angles = [
 
 [N, N_layers] = size(angles);
 
-[As,Bs,Ds,alphas,betas,deltas] = matrices(Q, angles, T, h);
+[As,Bs,Ds,alphas,betas,deltas] = laminate_matrices(Q, angles, T, h);
 
-As
-Bs
-Ds
-alphas
-betas
-deltas
+names = {'A', 'B', 'D', 'alpha', 'beta', 'delta'};
+units = {'Msi•in', 'Msi•in^2', 'Msi•in^3', '1/(Msi•in)', '1/(Msi•in^2)', '1/(Msi•in^3)'};
+matrices = {As, Bs, Ds, alphas, betas, deltas};
+
+fprintf('\n==================== Problem 1 ====================\n');
+for i = 1:N
+    fprintf('\n==================== Specimen %d ====================\n', i);
+
+    for j = 1:length(matrices)
+        fprintf('\n%s [%s]:\n', names{j}, units{j});
+        disp(matrices{j}(:,:,i));
+    end
+end
+
 
 
 %% Problem 2
+angles2 = angles - 15;
+[As2,Bs2,Ds2,alphas2,betas2,deltas2] = laminate_matrices(Q, angles2, T, h);
+names = {'A', 'B', 'D', 'alpha', 'beta', 'delta'};
+matrices = {As2, Bs2, Ds2, alphas2, betas2, deltas2};
 
-angles2 = angles + 15;
-[As2,Bs2,Ds2,alphas2,betas2,deltas2] = matrices(Q, angles2, T, h);
-
-Bs2
-Ds2
-alphas2
-betas2
-deltas2
+fprintf('\n==================== Problem 2 ====================\n');
+fprintf('\n===== Sufficiently long specimen =====\n\n');
 
 alpha11 = squeeze(alphas2(1,1,:));
-E11 = 1./alpha11/h/N_layers % Msi
+E11 = 1 ./ (alpha11 * h * N_layers);
 
+fprintf('\nEffective Tensile Modulus E11:\n');
 
-%% Func
-function [As,Bs,Ds,alphas,betas,deltas] = matrices(Q, angles, T_func, h)
-
-    [N, N_layers] = size(angles);
-
-    z = ((0:N_layers) - N_layers/2)*h;
-
-    As = zeros(3,3,N);
-    Bs = zeros(3,3,N);
-    Ds = zeros(3,3,N);
-
-    alphas = zeros(3,3,N);
-    betas  = zeros(3,3,N);
-    deltas = zeros(3,3,N);
-    
-    % Iterates through all specimens
-    for i = 1:N
-
-        A = zeros(3);
-        B = zeros(3);
-        D = zeros(3);
-
-        for k = 1:N_layers
-            angle = deg2rad(angles(i, k));
-            transformation = T_func(angle);
-            Qbar = transformation \ Q / transformation';
-
-            z0 = z(k);
-            z1 = z(k+1);
-
-            A = A + (z1 - z0) * Qbar;
-            B = B + (z1^2 - z0^2) * Qbar / 2;
-            D = D + (z1^3 - z0^3) * Qbar / 3;
-
-        end
-    
-
-    
-        ABD = [A B; B' D];
-        compliance = ABD \ eye(6);
-
-        As(:,:,i) = A;
-        Bs(:,:,i) = B;
-        Ds(:,:,i) = D;
-        
-       
-        alphas(:,:,i) = compliance(1:3,1:3);
-        betas(:,:,i) = compliance(1:3,4:6);
-        deltas(:,:,i) = compliance(4:6,4:6);
-    
-    end
+for i = 1:N
+    fprintf('Specimen %d: %.4f Msi\n', i, E11(i));
 end
+
+
