@@ -1,0 +1,28 @@
+clear all
+
+s = tf('s');
+RAD2DEG = 180/pi;
+DEG2RAD = pi/180;
+
+prob = 1;
+
+switch prob
+
+case 1
+
+% Given
+mu_x = [0 0]';
+mu_y = [0 0]';
+Sigma_xx = [0.7 0.73; 0.73 1.1];
+Sigma_yy = [0.7 0.19; 0.19 0.16];
+Sigma_xy = [0.63 0.23; 0.72 0.31];
+Sigma_yy_inv = inv(Sigma_yy);
+Sigma_yx = inv(Sigma_xy);
+
+y = [0.27 0.62]';
+
+mu_x_y = mu_x + Sigma_xy * Sigma_yy_inv * (y - mu_y);
+Sigma_x_y = Sigma_xx - Sigma_xy * Sigma_yy_inv * Sigma_yx;
+
+
+end
