@@ -71,23 +71,23 @@ class Navigator(BaseNavigator):
 
         self.params = params if params is not None else NavigatorParams()
         self.v_prev_thresh = v_prev_thresh
-
+        
         self.reset()
         
     ##### Helpers #####
     
     def reset(self) -> None:
-        self.traj_time = None
-        self.traj = None
+        # self.traj_time = None
+        # self.traj = None
         
         self.t_prev = 0.0
         self.v_prev = 0.0
         self.om_prev = 0.0
     
-    def load_traj(self, traj_time: np.ndarray, plan: TrajectoryPlan) -> None:
-        """ Loads in a new trajectory to follow, and resets the time """
-        self.traj_time = traj_time
-        self.plan = plan
+    # def load_traj(self, traj_time: np.ndarray, plan: TrajectoryPlan) -> None:
+    #     """ Loads in a new trajectory to follow, and resets the time """
+    #     self.traj_time = traj_time
+    #     self.plan = plan
     
     @staticmethod
     def get_flatness_values(t: float, plan: TrajectoryPlan) -> tuple[np.ndarray, np.ndarray, np.ndarray,
@@ -146,8 +146,8 @@ class Navigator(BaseNavigator):
         yd_prev = self.v_prev*np.sin(state.theta)
         
         # compute virtual controls
-        u = np.array([xdd_d + self.params.kp_x*(x_d-state.x) + self.params.kp_y*(xd_d-xd_prev),
-                      ydd_d + self.params.kd_x*(y_d-state.y) + self.params.kd_y*(yd_d-yd_prev)])
+        u = np.array([xdd_d + self.params.kp_x*(x_d-state.x) + self.params.kd_x*(xd_d-xd_prev),
+                      ydd_d + self.params.kp_y*(y_d-state.y) + self.params.kd_y*(yd_d-yd_prev)])
         
         # compute real controls by mapping what we can do to our ideal controls
         # by differentiating dynamics again and then mapping [a,om] to [xdd, ydd]
@@ -157,6 +157,7 @@ class Navigator(BaseNavigator):
         vel = self.v_prev + a*dt
         
         # Control limit handled by base navigator class
+        self.t_prev = t
         self.v_prev = vel
         self.om_prev = om
         
@@ -164,7 +165,7 @@ class Navigator(BaseNavigator):
         msg.v = vel
         msg.omega = om
         
-        return vel, om
+        return msg
     
     def compute_trajectory_plan(self,
         state: TurtleBotState,
@@ -174,11 +175,6 @@ class Navigator(BaseNavigator):
         horizon: float,
     ) -> TrajectoryPlan | None:
         
-        # not sure what to do for now
-        # From notebook
-        v_desired = 0.15
-        spline_alpha = 0.05 
-        
         # Run A* using horizon, state, goal, occupancy, and resolution
         grid_size = occupancy.size_xy
         x_init = (state.x, state.y)
@@ -186,15 +182,16 @@ class Navigator(BaseNavigator):
         statespace_lo=(0,0)
         statespace_hi=grid_size
         
-        a_star = AStar(statespace_lo, statespace_hi,
-                       x_init,
-                       x_goal,
-                       occupancy,
-                       resolution,
-                       horizon,
-                       heuristic="l2",  # explicitly shown
-                       heuristic_weight=1  # explicitly shown
-            )
+        a_star = AStar(
+            statespace_lo,
+            statespace_hi,
+            x_init,
+            x_goal,
+            occupancy,
+            resolution=resolution,
+            heuristic="l2",
+            heuristic_weight=1.0,
+        )
         
         # Solvability
         if not a_star.solve():
@@ -208,19 +205,18 @@ class Navigator(BaseNavigator):
         self.reset()
 
         # Path time
-        path_length = np.sum(np.linalg.norm(np.diff(a_star.path, axis=0), axis=1))
-        tspan = path_length / v_desired
-        n_steps = len(a_star.path)
-        t_arr = np.linspace(0, tspan, n_steps)
+        path = np.asarray(a_star.path)
+        path_lengths = np.linalg.norm(np.diff(path, axis=0), axis=1)
+        t_arr = np.concatenate([[0.], np.cumsum(path_lengths / self.params.v_desired)])
         
-        path_x_spline = splrep(t_arr, a_star.path[:,0], k = 3, s = spline_alpha)
-        path_y_spline = splrep(t_arr, a_star.path[:,1], k = 3, s = spline_alpha)
+        path_x_spline = splrep(t_arr, path[:,0], k = 3, s = self.params.spline_alpha)
+        path_y_spline = splrep(t_arr, path[:,1], k = 3, s = self.params.spline_alpha)
 
         return TrajectoryPlan(
             path=a_star.path,
             path_x_spline=path_x_spline,
             path_y_spline=path_y_spline,
-            duration=tspan,
+            duration=t_arr[-1],
         )
         
         

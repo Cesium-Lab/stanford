@@ -46,38 +46,20 @@ class AStar(object):
             x: state tuple
         Output:
             Boolean True/False
-        Hint: self.occupancy is a DetOccupancyGrid2D object, take a look at its methods for what might be
-              useful here
         """
-        ########## Code starts here ##########
         collision_free = self.occupancy.is_free(x)
         
         in_bounds = (
             x[0] >= self.statespace_lo[0] and
             x[1] >= self.statespace_lo[1] and
-            x[0] < self.statespace_hi[0] and
-            x[1] < self.statespace_hi[1]
+            x[0] <= self.statespace_hi[0] and
+            x[1] <= self.statespace_hi[1]
         )
         
         return collision_free and in_bounds
-        ########## Code ends here ##########
 
     def distance(self, x1, x2):
-        """
-        Computes the Euclidean distance between two states. This is the cost of
-        traveling along the edge between two neighboring states, and it is used
-        for the cost-to-arrive. It should NOT depend on self.heuristic_type.
-        Inputs:
-            x1: First state tuple
-            x2: Second state tuple
-        Output:
-            Float Euclidean distance
-
-        HINT: This should take one line. Tuples can be converted to numpy arrays using np.array().
-        """
-        ########## Code starts here ##########
         return np.linalg.norm(np.asarray(x1) - np.asarray(x2))
-        ########## Code ends here ##########
 
     def heuristic(self, x):
         """
@@ -91,9 +73,6 @@ class AStar(object):
             x: state tuple
         Output:
             Float heuristic value
-
-        HINT: np.linalg.norm accepts an `ord` argument. Raise a ValueError for
-              an unrecognized self.heuristic_type.
         """
         ########## Code starts here ##########
         if self.heuristic_type not in ["l1", "l2", "linf"]:
@@ -125,15 +104,6 @@ class AStar(object):
             x: tuple state
         Ouput:
             List of neighbors that are free, as a list of TUPLES
-
-        HINTS: Use self.is_free to check whether a given state is indeed free.
-               Use self.snap_to_grid (see above) to ensure that the neighbors
-               you compute are actually on the discrete grid, i.e., if you were
-               to compute neighbors by adding/subtracting self.resolution from x,
-               numerical errors could creep in over the course of many additions
-               and cause grid point equality checks to fail. To remedy this, you
-               should make sure that every neighbor is snapped to the grid as it
-               is computed.
         """
         neighbors = []
         ########## Code starts here ##########
@@ -205,26 +175,17 @@ class AStar(object):
             None
         Output:
             Boolean, True if a solution from x_init to x_goal was found
-
-        HINTS:  We're representing the open and closed sets using python's built-in
-                set() class. This allows easily adding and removing items using
-                .add(item) and .remove(item) respectively, as well as checking for
-                set membership efficiently using the syntax "if item in set".
-
-                Use self.distance for edge costs (cost-to-arrive) and
-                self.heuristic for the estimated cost-to-go, as in Algorithm 1
-                of the handout.
         """
-        ########## Code starts here ##########
-        
         # Init sets
         self.open_set.clear()
         self.open_set.add(self.snap_to_grid(self.x_init))
         self.closed_set.clear()
     
-        # Costs
-        self.cost_to_arrive[self.x_init] = 0
-        self.est_cost_through[self.x_init] = self.heuristic(self.x_init)
+        # Costs and clearing
+        self.cost_to_arrive = {self.x_init: 0}
+        self.est_cost_through = {self.x_init: self.heuristic(self.x_init)}
+        self.came_from = {}
+        self.path = None
         
         while len(self.open_set) > 0:
             x_curr = self.snap_to_grid(self.find_best_est_cost_through())
@@ -235,23 +196,23 @@ class AStar(object):
             self.open_set.remove(x_curr)
             self.closed_set.add(x_curr)
             
+
+            
             for x_neigh in self.get_neighbors(x_curr):
                 if x_neigh in self.closed_set:
                     continue
                 
                 tentative_cost_to_arrive = self.cost_to_arrive[x_curr] + self.distance(x_curr, x_neigh)
                 
-                if x_neigh not in self.open_set:
-                    self.open_set.add(x_neigh)
-                elif tentative_cost_to_arrive > self.cost_to_arrive[x_neigh]:
+                if tentative_cost_to_arrive >= self.cost_to_arrive[x_neigh]:
                     continue
                 
                 self.came_from[x_neigh] = x_curr
                 self.cost_to_arrive[x_neigh] = tentative_cost_to_arrive
                 self.est_cost_through[x_neigh] = tentative_cost_to_arrive + self.heuristic(x_neigh)
+                self.open_set.add(x_neigh)                 
                     
         return False
-        ########## Code ends here ##########
 
 class DetOccupancyGrid2D(object):
     """
