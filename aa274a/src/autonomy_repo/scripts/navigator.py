@@ -45,10 +45,10 @@ class NavigatorParams:
     kp_theta: float = 2.0
     
     # Differential Flatness Control
-    kp_x: float = 0
-    kd_x: float = 0
-    kp_y: float = 0
-    kd_y: float = 0
+    kp_x: float = 2.0
+    kd_x: float = 2.0
+    kp_y: float = 2.0
+    kd_y: float = 2.0
 
     # AStar Control
     v_desired: float = 0.15
@@ -183,8 +183,8 @@ class Navigator(BaseNavigator):
         statespace_hi=grid_size
         
         a_star = AStar(
-            statespace_lo,
-            statespace_hi,
+            (state.x - horizon, state.y - horizon),
+            (state.x + horizon, state.y + horizon),
             x_init,
             x_goal,
             occupancy,
@@ -213,7 +213,7 @@ class Navigator(BaseNavigator):
         path_y_spline = splrep(t_arr, path[:,1], k = 3, s = self.params.spline_alpha)
 
         return TrajectoryPlan(
-            path=a_star.path,
+            path=path,
             path_x_spline=path_x_spline,
             path_y_spline=path_y_spline,
             duration=t_arr[-1],
