@@ -16,7 +16,8 @@ from matlab.engine import MatlabEngine
 
 
 class OrbitalFlyby:
-    def __init__(self, name: str, datetime_ymdhms_utc: tuple[int,int,int,int,int,float], planet_num: int = None):
+    def __init__(self, name: str, datetime_ymdhms_utc: tuple[int,int,int,int,int,float], planet_num: int = None,
+                 mu: float = None, r_cb: float = None):
         self.name = name
         self.date = datetime_ymdhms_utc
         self.planet_num = planet_num
@@ -27,6 +28,9 @@ class OrbitalFlyby:
         
         self.v_departure_HCI, self.v_arrival_HCI = None, None
         self.v_departure_PCI, self.v_arrival_PCI = None, None
+        
+        self.mu = mu
+        self.r_cb = r_cb
     
     def add_rv_HCI(self, r_HCI: np.ndarray, v_HCI: np.ndarray):
         self.r_HCI, self.v_HCI = r_HCI, v_HCI
