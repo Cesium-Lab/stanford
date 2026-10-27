@@ -71,16 +71,12 @@
   - Dominant model for complex environments
   - Can predict agents jointly
 
-## Actions!
+## Path Planning!
 - Path Planning
   - Graph-based
     - A*
   - Sample-based
     - RRT, RRT*
-- Trajectory Optimization
-  - Optimal Control, Numerical Solvers
-- Trajectory Following
-  - Kinematic/dynamic models, PID, LQR
 
 ### Graph-based planning
 - Graph search
@@ -237,3 +233,80 @@ $$
   - Drive to 0
 - iLQR
   - Drive to 0 AND iterate to get nominal input/state
+- Minimal-snap trajectory planning
+
+## Trajectory Following
+- Closed loop feedback to reject disturbances and model errors
+- No **continuously differentiable** feedback control law to stabilize nonholonomic system to desired pose
+
+### Feedback Linearizing Controller
+- e.g. with position $p$ 
+- ![alt text](image-4.png)
+
+### LQR-based controllers
+- You know what this is
+- Requires linear dynamics and only regulates state to 0
+- Works for arbitrary dimension systems and performs well
+
+### Gain-scheduled LQR
+- Policy/feedback-based now
+- Apply gain from closest point
+- Iterate to find optimal trajectory/inputs
+
+## Differential Flatness
+- If we can find a set of outputs
+  - All states and inputs can be determined from these outputs (no integration)
+- Process
+  - Define initial and final conditions
+  - Build curve for all time with splines
+  - One spline for each direction
+
+## Perception Stack Overview
+- Passive
+  - Measure ambient environment entering sensor
+  - Performance depends on environment
+  - e.g. Temperature probes, cameras
+- Active
+  - Emit energy and measure reaction
+  - Might affect environment 
+  - e.g. Ultrasonic, laser rangefinders
+
+### Proprioceptive
+- Values internal to robot
+- e.g. accel, voltage, joint angles
+- **IMU**
+  - *Rate gyroscope* (angular velocity)
+  - *Accelerometer* (proper acceleration)
+  - *Magnetometer* (magnetic field)
+  - All of these have biases
+  - Orientation
+    - Low pass accel for gravity
+    - Cross B field to get East, then again for North
+  - NED (north, east, down) frame
+- **GNSS**
+  - Time-of-flight to get distance, sat locations for endpoints
+
+### Exteroceptive
+- Measure environment
+- e.g. distance, light intensity
+- Active Randing
+  - Time-of-flight (ultrasonic, laser rangefilter)
+  - Geometric (optical triangulation, structured light)
+- ALL output point clouds
+- **Geometric Active Ranging**
+  - Use geometric properties in measurements to establish distance
+  - Project known light pattern, reflection captured, triangulation
+- **Point cloud alignment**
+  - Align point cloud A to point cloud B
+  - Relative pose: Transform to move A to B
+
+## Computer Vision!
+- Geometric
+  - SfM: structure from motion
+    - Different perspecives
+  - PnP: N Point Perspective
+    - Match 2D image points with 3D points in pre-existing model
+- Point Cloud Alignment
+  - ICP: Iterative Closest point
+
+LECTURE 8, PAGE 27
