@@ -349,4 +349,14 @@ $$
 
 ### Direct Linear Transformation Model
 - From correspondences, calculate $K$, $R$, $t$
-- 
+- Image only gives 2D information so you can't know in 3D without more of them
+
+### Algorithms
+- Camera Calibration
+  - $2n$ component-wise equations for $i = 1, ..., n$
+  - Extract camera parameters via RQ factorization
+- Perspective Projection
+
+### RANSAC
+- Random
+  
