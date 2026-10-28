@@ -49,7 +49,7 @@ def nms(boxes, scores, iou_threshold):
     """
     ########## Code starts here ##########
     
-    idx_ordered = np.argsort(scores, descending=True)
+    idx_ordered = np.argsort(scores)[::-1]
     
     F = []
 
@@ -77,7 +77,17 @@ def batched_nms(boxes, scores, labels, iou_threshold):
         (K,) integer indices of the kept boxes over all classes, sorted by decreasing score
     """
     ########## Code starts here ##########
-    raise NotImplementedError
+    
+    idx_range = np.arange(len(scores))
+    filtered_idx = []
+    filtered_scores = []
+    for lab in set(labels):
+        idx = nms(boxes[labels == lab], scores[labels == lab], iou_threshold)
+
+        filtered_idx = np.concatenate((filtered_idx, idx_range[labels == lab][idx]))
+        filtered_scores = np.concatenate((filtered_scores, scores[labels == lab][idx]))
+
+    return np.array([int(x) for x in filtered_idx[np.argsort(filtered_scores)[::-1]]])
     ########## Code ends here ##########
 
 
@@ -94,7 +104,27 @@ def match_detections(boxes, scores, gt_boxes, iou_threshold=0.5):
         (N,) boolean array aligned with the input order (True = true positive)
     """
     ########## Code starts here ##########
-    raise NotImplementedError
+    iou_grid = box_iou(boxes, gt_boxes)  # (N,G)
+    # print(iou_grid)
+    scores = scores.copy()
+    
+    # (G,)
+    available_gt = np.ones(len(gt_boxes), dtype=bool)
+    found_scores = np.zeros(len(scores), dtype=bool)
+    
+    for s_i in np.argsort(-scores):
+
+        # highest iou
+        gt_i = np.argmax(iou_grid[s_i])
+
+        if (
+            iou_grid[s_i, gt_i] >= iou_threshold
+            and available_gt[gt_i]
+        ):
+            available_gt[gt_i] = False
+            found_scores[s_i] = True
+
+    return found_scores
     ########## Code ends here ##########
 
 
@@ -107,7 +137,21 @@ def precision_recall(scores, tp, num_gt):
         precision, recall: (N,) arrays, entry k-1 uses the k highest-scoring detections
     """
     ########## Code starts here ##########
-    raise NotImplementedError
+    idx = np.argsort(-scores)
+    tp_sorted = tp[idx]
+    
+    true_pos = 0
+    precision = []
+    recall = []
+    
+    for i,b in enumerate(tp_sorted):
+        if b:
+            true_pos += 1
+        
+        precision.append(true_pos/(i+1))
+        recall.append(true_pos/num_gt if num_gt > 0 else 0.0)
+
+    return np.asarray(precision), np.asarray(recall)
     ########## Code ends here ##########
 
 
@@ -121,5 +165,24 @@ def average_precision(precision, recall):
         float AP in [0, 1]
     """
     ########## Code starts here ##########
-    raise NotImplementedError
+    if len(precision) == 0:
+        return 0.0
+
+    # Interpolated precision envelope
+    p_interp = np.maximum.accumulate(precision[::-1])[::-1]
+    print(p_interp)
+
+    # Change in recall at each detection
+    dr = np.diff(np.r_[0, recall])
+
+    return float(np.sum(p_interp * dr))
+    # new_p = []
+    # for i,(p,r) in enumerate(zip(precision, recall)):
+    #     high = precision[recall > recall[i]]
+        # new_p.append()
+    p_new = [
+        precision[np.argmax(precision[recall >= recall[i]])] for i,p in enumerate(precision)
+    ]
+    print(p_new)
+    return np.cumsum(p_new)
     ########## Code ends here ##########
