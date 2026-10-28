@@ -1,7 +1,3 @@
-[submodule "aa273/horizon-op-nav"]
-	path = aa273/horizon-op-nav
-	url = https://github.com/colin-skinner/horizon-op-nav/tree/main
-
 [submodule "aa228/k2_but_cooked"]
 	path = aa228/k2_but_cooked
 	url = https://github.com/colin-skinner/k2_but_cooked
@@ -16,4 +12,4 @@
 
 [submodule "aa273/horizon-op-nav"]
 	path = aa273/horizon-op-nav
-	url = https://github.com/colin-skinner/horizon-op-nav.git
+	url = https://github.com/colin-skinner/horizon-op-nav
