@@ -358,5 +358,24 @@ $$
 - Perspective Projection
 
 ### RANSAC
-- Random
+- Random Sample Consensus
+- Process
+  - Take 2 points
+  - Get all inliers that are close enough to a line/transformation
+  - Keep track of line with most inliers
+- In principle, need to check all combinations
+  - combos = $\frac{N(N-1)}{2}$, which is a lot
+- Approx of percentage of inliers
+  - $w = \frac{\text{number of inliers}}{N}$
+  - e.g. If 99% finding points free of outliers
+- ![alt text](image-9.png)
+- $\bar{k}$ depends only on $w$, not $N$
+
+### CV Pipeline
+1. Input 2 images, or image and 3D model
+2. Feature detection/matching -> correspondences
+3. RANSAC to reject outliers
+   - Sample n features
+   - solve geometric problem with correspondences
+   - Check solution fit, return highest score
   
