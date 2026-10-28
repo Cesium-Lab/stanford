@@ -302,10 +302,6 @@ $$
 
 ## Computer Vision!
 - Geometric
-  - SfM: structure from motion
-    - Different perspecives
-  - PnP: N Point Perspective
-    - Match 2D image points with 3D points in pre-existing model
 - Point Cloud Alignment
   - ICP: Iterative Closest point
 
@@ -315,12 +311,42 @@ $$
   - Left and right nulls spaces, singular values
 - Least norms solution
   - Based on smallest singular value or something
-
-### Extras
 - SLAM
   - Lidar: relative poses between scans
   - Pose graph with nodes and relative measurements
   - Front-end: post graph from sensor measurements
   - Back-end: Optimization to find consistent set
-- CV
-  - 
+
+### CV Geometry
+- Intrinsic parameters:
+  - Camera calibration matrix $K$
+- PnP: N Point Perspective
+  - Match 2D image points with 3D points in pre-existing model
+- SfM: structure from motion
+  - 3D locations based on pairs/collections of images from different perspectives
+- Semantic
+  - Classification: what's in it?
+  - Detection: Draw boxes around 
+  - Segmentation: Actual pixel masks 
+
+### Pinhole Camera Model
+- From thing in the world (relative to origin of the 3D optical frame) into pixel points
+- Pinhole to block most of rays but let in a little bit of light
+  - Inverts image
+  - ![alt text](image-5.png)
+- Process
+  - Map point $P_w$ from world frame to $P_c$ camera frame
+  - Project point onto image plane to get $p$
+  - Transform to $(u,w)$ pixel coordinates
+- Perspective Projection
+  - ![alt text](image-6.png)
+  - Pixel coordiantes ARE on the left due to the transformation with $\alpha$ and $\beta$
+  - Could have skew (unlikely)
+    - ![alt text](image-7.png)
+- Full transformation chain
+  - Gets points from world coordiantes
+  - ![alt text](image-8.png)
+
+### Direct Linear Transformation Model
+- From correspondences, calculate $K$, $R$, $t$
+- 
