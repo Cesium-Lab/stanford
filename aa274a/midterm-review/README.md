@@ -309,4 +309,18 @@ $$
 - Point Cloud Alignment
   - ICP: Iterative Closest point
 
-LECTURE 8, PAGE 27
+### Problem
+- Over translation and rotation, minimize error
+  - Based on SVD (**Wahba's Problem**)
+  - Left and right nulls spaces, singular values
+- Least norms solution
+  - Based on smallest singular value or something
+
+### Extras
+- SLAM
+  - Lidar: relative poses between scans
+  - Pose graph with nodes and relative measurements
+  - Front-end: post graph from sensor measurements
+  - Back-end: Optimization to find consistent set
+- CV
+  - 
