@@ -13,38 +13,32 @@ PSI_TO_MPA = 0.00689476;
 %% Materials
 
 % Q1: T800/3900-2
-% Msi
-Ex = 23.2;          
-Ey = 1.30;          
-G = 0.90;           
-nu_x = 0.28;
-nu_y = Ey / Ex * nu_x;
-alpha1 = -6.8e-6;   % 1/deg F
-alpha2 = 32e-6;     % 1/deg F
-% h = 0.007;          % in
+Q1.Ex = 23.2;          % Msi
+Q1.Ey = 1.30;          % Msi
+Q1.G = 0.90;           % Msi
+Q1.nu_x = 0.28;
+Q1.alpha1 = -6.8e-6;   % 1/deg F
+Q1.alpha2 = 32e-6;     % 1/deg F
+Q1.h = 0.007;          % in
 
-% ksi
-% Xt = 412;           
-% Xc = 225;           
-% Yt = 10;            
-% Yc = 24.3;          
-S = 10.0;           
+Q1.Xt = 412;           % ksi
+Q1.Xc = 225;           % ksi
+Q1.Yt = 10;            % ksi
+Q1.Yc = 24.3;          % ksi
+Q1.S = 10;             % ksi
 
-% T800SC/3900-2B
-% Msi
-Ex2 = 21.5;         
-Ey2 = 1.20;         
-G2 = 0.570;         
-nu_x2 = 0.018;
-nu_y2 = Ey2 / Ex2 * nu_x2;
-% h2_nominal = 0.191; % mm
+% Q2: T800SC/3900-2B
+Q2.Ex = 21.5;          % Msi
+Q2.Ey = 1.20;          % Msi
+Q2.G = 0.570;          % Msi
+Q2.nu_x = 0.018;
+Q2.h = 0.191 / 25.4;   % in, nominal
 
-% ksi
-% Xt2 = 430;          
-% Xc2 = 258;          
-% Yt2 = 8.75;         
-% Yc2 = 31.0;         
-S2 = 10.0;          
+Q2.Xt = 430;           % ksi
+Q2.Xc = 258;           % ksi
+Q2.Yt = 8.75;          % ksi
+Q2.Yc = 31.0;          % ksi
+Q2.S = 10;             % ksi
 
 %% Coupon
 
