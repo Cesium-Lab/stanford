@@ -35,7 +35,7 @@ angles = [
 
 [N, N_layers] = size(angles);
 
-[As,Bs,Ds,alphas,betas,deltas] = laminate_matrices(Q, angles, T, h);
+[As,Bs,Ds,alphas,betas,deltas] = laminate_matrices(Q, angles, T, h * N_layers);
 
 names = {'A', 'B', 'D', 'alpha', 'beta', 'delta'};
 units = {'Msi•in', 'Msi•in^2', 'Msi•in^3', '1/(Msi•in)', '1/(Msi•in^2)', '1/(Msi•in^3)'};
@@ -55,7 +55,7 @@ end
 
 %% Problem 2
 angles2 = angles - 15;
-[As2,Bs2,Ds2,alphas2,betas2,deltas2] = laminate_matrices(Q, angles2, T, h);
+[As2,Bs2,Ds2,alphas2,betas2,deltas2] = laminate_matrices(Q, angles2, T, h * N_layers);
 names = {'A', 'B', 'D', 'alpha', 'beta', 'delta'};
 matrices = {As2, Bs2, Ds2, alphas2, betas2, deltas2};
 

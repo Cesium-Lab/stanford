@@ -1,9 +1,9 @@
 %% Func
 function [As,Bs,Ds,alphas,betas,deltas] = laminate_matrices(Q, angles, T_func, h)
+% h is an array of total laminate thicknesses, one value per specimen.
+% Plies have equal thickness; angles run top to bottom, with positive z downward.
 
 [N, N_layers] = size(angles);
-
-z = h;
 
 As = zeros(3,3,N);
 Bs = zeros(3,3,N);
@@ -15,6 +15,8 @@ deltas = zeros(3,3,N);
 
 % Iterates through all specimens
 for i = 1:N
+
+    z = linspace(-h(i)/2, h(i)/2, N_layers + 1);
 
     A = zeros(3);
     B = zeros(3);
