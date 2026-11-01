@@ -1,7 +1,5 @@
 %% Func
 function [As,Bs,Ds,alphas,betas,deltas] = laminate_matrices(Q, angles, T_func, h)
-% h is an array of total laminate thicknesses, one value per specimen.
-% Plies have equal thickness; angles run top to bottom, with positive z downward.
 
 [N, N_layers] = size(angles);
 
