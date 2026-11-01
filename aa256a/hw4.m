@@ -3,13 +3,6 @@ clear
 close all
 format short g
 
-%% Conversions
-CM_TO_IN = 1 / 2.54;
-mm_to_in = 1 / 25.4;
-LBF_TO_N = 4.44822;
-PSI_TO_MPA = 0.00689476;
-
-
 %% Materials
 
 % Q1: T800/3900-2
@@ -55,9 +48,9 @@ angles = [
     90    0    0    0;
     90   90    0   90
 ];
-
 [N, N_layers] = size(angles);
 
+% cm
 dimensions = [
     25.5  2.70  0.077;
     30.6  2.67  0.077;
@@ -71,65 +64,32 @@ dimensions = [
     25.5  2.74  0.077
 ];
 
-lengths = dimensions(:,1);      % cm
-widths = dimensions(:,2);       % cm
-thicknesses = dimensions(:,3);  % cm
+% Select the material used for this calculation.
+material = Q1;
+laminate1 = problem1(material, angles, dimensions);
 
 
+function [out] = problem1(material, angles, dimensions)
+    % cm -> in
+    h = dimensions(:,3) * 2.54;
 
-% Dimensions in inches
-lengths_in = lengths * CM_TO_IN;
-widths_in = widths * CM_TO_IN;
-thicknesses_in = thicknesses * CM_TO_IN;
+    nu_y = material.Ey / material.Ex * material.nu_x;
+    out.Q = cast([
+        material.Ex/(1-material.nu_x*nu_y) material.nu_x*material.Ey/(1-material.nu_x*nu_y) 0;
+        material.nu_x*material.Ey/(1-material.nu_x*nu_y) material.Ey/(1-material.nu_x*nu_y) 0;
+        0 0 material.G
+        ], "double");
 
-% Measured ply thickness for each
-h = thicknesses_in;
-h2 = thicknesses_in / 4;
-
-Q = cast([
-    Ex/(1-nu_x*nu_y)      nu_x*Ey/(1-nu_x*nu_y) 0;
-    nu_y*Ex/(1-nu_x*nu_y) Ey/(1-nu_x*nu_y) 0;
-    0 0 G
-    ], "double");
-
-T = @(x) [
-    cos(x)*cos(x)   sin(x)*sin(x)  2*cos(x)*sin(x);
-    sin(x)*sin(x)   cos(x)*cos(x) -2*cos(x)*sin(x);
-    -sin(x)*cos(x) sin(x)*cos(x)   cos(x)*cos(x)-sin(x)*sin(x)];
+    out.T = @(x) [
+        cos(x)*cos(x)   sin(x)*sin(x)  2*cos(x)*sin(x);
+        sin(x)*sin(x)   cos(x)*cos(x) -2*cos(x)*sin(x);
+        -sin(x)*cos(x) sin(x)*cos(x)   cos(x)*cos(x)-sin(x)*sin(x)];
 
 
-[As,Bs,Ds,alphas,betas,deltas] = laminate_matrices(Q, angles, T, h);
-
-names = {'A', 'B', 'D', 'alpha', 'beta', 'delta'};
-units = {'Msi•in', 'Msi•in^2', 'Msi•in^3', '1/(Msi•in)', '1/(Msi•in^2)', '1/(Msi•in^3)'};
-matrices = {As, Bs, Ds, alphas, betas, deltas};
-
-fprintf('\n==================== Problem 1 ====================\n');
-for i = 1:N
-    fprintf('\n==================== Specimen %d ====================\n', i);
-
-    for j = 1:length(matrices)
-        fprintf('\n%s [%s]:\n', names{j}, units{j});
-        disp(matrices{j}(:,:,i));
-    end
+    [out.As,out.Bs,out.Ds,out.alphas,out.betas,out.deltas] = laminate_matrices(out.Q, angles, out.T, h);
 end
 
-% 
-% 
-% %% Problem 2
-% angles2 = angles - 15;
-% [As2,Bs2,Ds2,alphas2,betas2,deltas2] = laminate_matrices(Q, angles2, T, h);
-% names = {'A', 'B', 'D', 'alpha', 'beta', 'delta'};
-% matrices = {As2, Bs2, Ds2, alphas2, betas2, deltas2};
-% 
-% fprintf('\n==================== Problem 2 ====================\n');
-% fprintf('\n===== Sufficiently long specimen =====\n\n');
-% 
-% alpha11 = squeeze(alphas2(1,1,:));
-% E11 = 1 ./ (alpha11 * h * N_layers);
-% 
-% fprintf('\nEffective Tensile Modulus E11:\n');
-% 
-% for i = 1:N
-%     fprintf('Specimen %d: %.4f Msi\n', i, E11(i));
-% end
+function [forces, moments] = determine_N_M(out, material, deltaT)
+    % thermal strain
+    
+end
