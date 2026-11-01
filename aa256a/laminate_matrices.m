@@ -3,7 +3,7 @@ function [As,Bs,Ds,alphas,betas,deltas] = laminate_matrices(Q, angles, T_func, h
 
 [N, N_layers] = size(angles);
 
-z = ((0:N_layers) - N_layers/2)*h;
+z = h;
 
 As = zeros(3,3,N);
 Bs = zeros(3,3,N);
