@@ -80,6 +80,7 @@ dimensions = [
     25.5  2.74  0.077
 ];
 
+h_p1 = size(angles1,2) * Q1.h * ones(size(angles1,1),1);
 h_p2 = dimensions(:,3) / 2.54;
 
 %% Problem 1
@@ -120,6 +121,7 @@ if print_p1
 
 
     fprintf('\n==================== Part (c) ====================\n');
+    disp('Columns: top, bottom of each ply. Strains are dimensionless.');
     for i = 1:size(angles1,1)
         fprintf('\n==================== Specimen %d ====================\n', i);
         for j = 1:size(angles1,2)
@@ -136,6 +138,39 @@ end
 
 %% Problem 2
 laminate2 = make_laminate(Q2, angles2, h_p2);
+
+% MTS axial displacement (mm), zeroed at each run's first sample.
+Lg_mm = dimensions(:,1) * 10; % Use supplied Part 2 lengths, cm -> mm.
+alpha11 = squeeze(laminate2.alphas(1,1,:));
+K2 = 1e6 * 4.44822 * (dimensions(:,2)/2.54) ./ (alpha11 .* Lg_mm); % N/mm
+hw4_dir = fileparts(mfilename('fullpath'));
+
+figure('Theme','light','Position',[100 100 1000 1300]);
+tiledlayout(5,2);
+for i = 1:10
+    nexttile; hold on;
+    files = {sprintf('layup%d.dat',i)};
+    if i == 1, files{2} = 'layup1p2.dat'; end % Separate restart, not concatenated.
+    xmax = 0;
+    for j = 1:numel(files)
+        data = readmatrix(fullfile(hw4_dir,'tensile_data',files{j}), ...
+            'FileType','text','NumHeaderLines',8);
+        data = data(all(isfinite(data(:,1:6)),2),1:6); % Skip repeated headers.
+        force = data(:,3) - data(1,3); % N
+        extension = data(:,4) - data(1,4); % mm
+        plot(extension,force,'DisplayName',files{j});
+        xmax = max(xmax,max(extension));
+    end
+    extension = [0 xmax];
+    plot(extension,K2(i)*extension,'k--','DisplayName','Theory (free bending)');
+    title(sprintf('Coupon %d [%g/%g/%g/%g]',i,angles2(i,:)));
+    xlabel('Axial displacement (mm)'); ylabel('Load (N)');
+    legend('show','Location','best','Interpreter','none'); grid on;
+end
+sgtitle('Q2: full experimental curves and linear elastic theory');
+exportgraphics(gcf,fullfile(hw4_dir,'hw4_q2.png'),'Resolution',180);
+exportgraphics(gcf,fullfile(hw4_dir,'hw4_q2.pdf'),'ContentType','vector');
+
 %% Functions
 
 function [laminate] = make_laminate(material, angles, h)
