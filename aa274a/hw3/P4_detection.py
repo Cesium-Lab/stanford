@@ -168,21 +168,13 @@ def average_precision(precision, recall):
     if len(precision) == 0:
         return 0.0
 
-    # Interpolated precision envelope
-    p_interp = np.maximum.accumulate(precision[::-1])[::-1]
-    print(p_interp)
+    # Pad the curve: recall starts at 0, and unachieved recall contributes 0.
+    p = np.r_[0.0, precision, 0.0]
+    r = np.r_[0.0, recall, 1.0]
 
-    # Change in recall at each detection
-    dr = np.diff(np.r_[0, recall])
+    # Sweep right to left so p[i] is the best precision from i onward.
+    p_interp = np.maximum.accumulate(p[::-1])[::-1]
 
-    return float(np.sum(p_interp * dr))
-    # new_p = []
-    # for i,(p,r) in enumerate(zip(precision, recall)):
-    #     high = precision[recall > recall[i]]
-        # new_p.append()
-    p_new = [
-        precision[np.argmax(precision[recall >= recall[i]])] for i,p in enumerate(precision)
-    ]
-    print(p_new)
-    return np.cumsum(p_new)
+    # Sum rectangles under the envelope; repeated recall values have zero width.
+    return float(np.sum(np.diff(r) * p_interp[1:]))
     ########## Code ends here ##########
