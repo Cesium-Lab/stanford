@@ -81,10 +81,9 @@ dimensions = [
 ];
 
 h_p1 = size(angles1,2) * Q1.h * ones(size(angles1,1),1);
-h_p2 = dimensions(:,3) / 2.54;
+h_p2 = dimensions(:,3) / 2.54; % covnerting
 
 %% Problem 1
-%% Problem 1.a Thermal forces and moments
 
 deltaT = 75 - 400;
 
@@ -104,10 +103,6 @@ if print_p1
         disp(1e6 * M1(:,i));
     end
 
-    %% Part 1.b Midplane strains and curvatures
-
-
-
     fprintf('\n==================== Part (b) ====================\n');
     for i = 1:size(angles1,1)
         fprintf('\nSpecimen %d\n', i);
@@ -116,9 +111,6 @@ if print_p1
         disp('Curvature [kX; kY; kXY] (1/in):');
         disp(k1(:,i));
     end
-
-    %% Part 1.c Residual stresses and strains at ply faces
-
 
     fprintf('\n==================== Part (c) ====================\n');
     disp('Columns: top, bottom of each ply. Strains are dimensionless.');
@@ -138,38 +130,46 @@ end
 
 %% Problem 2
 laminate2 = make_laminate(Q2, angles2, h_p2);
-
-% MTS axial displacement (mm), zeroed at each run's first sample.
 Lg_mm = dimensions(:,1) * 10; % Use supplied Part 2 lengths, cm -> mm.
 alpha11 = squeeze(laminate2.alphas(1,1,:));
 K2 = 1e6 * 4.44822 * (dimensions(:,2)/2.54) ./ (alpha11 .* Lg_mm); % N/mm
+
 hw4_dir = fileparts(mfilename('fullpath'));
 
 figure('Theme','light','Position',[100 100 1000 1300]);
 tiledlayout(5,2);
 for i = 1:10
     nexttile; hold on;
-    files = {sprintf('layup%d.dat',i)};
-    if i == 1, files{2} = 'layup1p2.dat'; end % Separate restart, not concatenated.
-    xmax = 0;
-    for j = 1:numel(files)
-        data = readmatrix(fullfile(hw4_dir,'tensile_data',files{j}), ...
-            'FileType','text','NumHeaderLines',8);
-        data = data(all(isfinite(data(:,1:6)),2),1:6); % Skip repeated headers.
-        force = data(:,3) - data(1,3); % N
-        extension = data(:,4) - data(1,4); % mm
-        plot(extension,force,'DisplayName',files{j});
-        xmax = max(xmax,max(extension));
-    end
-    extension = [0 xmax];
-    plot(extension,K2(i)*extension,'k--','DisplayName','Theory (free bending)');
+    file = sprintf('layup%d.dat',i);
+    if i == 1, file = 'layup1p2.dat'; end
+    data = readmatrix(fullfile(hw4_dir,'tensile_data',file), ...
+        'FileType','text','NumHeaderLines',8);
+    data = data(all(isfinite(data(:,1:6)),2),1:6); % Skip repeated headers.
+    force = data(:,3) - data(1,3); % N
+    extension = data(:,4) - data(1,4); % mm
+    plot(extension,force);
+    extension = [0 max(extension)];
+    plot(extension,K2(i)*extension,'k--');
     title(sprintf('Coupon %d [%g/%g/%g/%g]',i,angles2(i,:)));
     xlabel('Axial displacement (mm)'); ylabel('Load (N)');
-    legend('show','Location','best','Interpreter','none'); grid on;
+    grid on;
 end
 sgtitle('Q2: full experimental curves and linear elastic theory');
 exportgraphics(gcf,fullfile(hw4_dir,'hw4_q2.png'),'Resolution',180);
-exportgraphics(gcf,fullfile(hw4_dir,'hw4_q2.pdf'),'ContentType','vector');
+% exportgraphics(gcf,fullfile(hw4_dir,'hw4_q2.pdf'),'ContentType','vector');
+snapnow;
+
+
+% Coupons with fibers aligned with the 0 degree direction align closest with the linear elasticity theory and give more linear response.
+% Coupon 9 agrees especially well because it has 3 of 4 of its plies oriented at 0.
+% But Coupon 1, with all 4 fibers in that direction, performs worse than expected,
+% showing that the alignment alone does not account for the results, and this may be potentially due to a resin failure,
+% and how one 90 degree ply of Coupon 9 might hold it transversely better. 
+
+% Asymmetric one, such as Coupons 3 and 5, have coupling between stretching and bending,
+% making their response more sensitive to the geometry of the test setup and the method with which they are secured.
+% Coupon 6, despite having ±45° fibers, performs exceptionally well, and its extension/bending coupling is not as present as in asymmetric coupons like Coupon 5.
+
 
 %% Functions
 
@@ -228,14 +228,13 @@ end
 function [resid] = residuals(laminate, material, ep_mid, deltaT, k_mid)
     e_t = [material.alpha_x material.alpha_y 0]' * deltaT;
     [n, n_layers] = size(laminate.angles);
-    % Resultants per ply: component x ply x specimen (M lbf/in, M lbf).
+
     resid.N = zeros(3,n_layers,n);
     resid.M = zeros(3,n_layers,n);
-    % Local stresses [sigma_x; sigma_y; tau_xy], in ksi:
-    % component x face (top, bottom) x ply x specimen.
+
+    % 2 for top and bottom
     resid.sigma = zeros(3,2,n_layers,n);
-    % Global strains [epsilon_X; epsilon_Y; gamma_XY], dimensionless:
-    % component x face (top, bottom) x ply x specimen.
+    % Global strains, also 2
     resid.eps_total = zeros(3,2,n_layers,n);
     resid.eps_elastic = zeros(3,2,n_layers,n);
 
