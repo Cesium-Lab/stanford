@@ -4,5 +4,6 @@ numpy>=1.19.4
 opencv-python>=4.5
 scipy>=1.11.3
 six>=1.15.0
+ipykernel
 # rclpy
 # asl_tb3_lib
