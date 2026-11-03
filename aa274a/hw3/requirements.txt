@@ -4,3 +4,4 @@ scipy>=1.11.3
 opencv-python>=4.5
 notebook
 torch
+torchvision
