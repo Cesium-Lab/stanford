@@ -13,6 +13,56 @@ import matplotlib.pyplot as plt
 from constants import AU_TO_KM
 from orbital import OrbitalFlyby
 
+def _matplotlib_3d(plotly_fig, show=True):
+    """Render the shared 3D geometry as a static Matplotlib figure."""
+    fig = plt.figure(figsize=(11, 8))
+    ax = fig.add_subplot(111, projection="3d")
+    points = []
+    data = plotly_fig.data
+    for i, trace in enumerate(data):
+        if trace.type == "cone":
+            continue  # The preceding shaft supplies the complete arrow.
+        xyz = [np.asarray(getattr(trace, k), dtype=float) for k in "xyz"]
+        points.append(np.column_stack([a.ravel() for a in xyz]))
+        if trace.type == "surface":
+            ax.plot_surface(*xyz, color=trace.colorscale[0][1],
+                            alpha=trace.opacity or 1, linewidth=0)
+            continue
+        label = trace.name if trace.showlegend is not False else "_nolegend_"
+        if "lines" in trace.mode:
+            color = trace.line.color
+            if i + 1 < len(data) and data[i + 1].type == "cone":
+                origin = np.array([a[0] for a in xyz])
+                delta = np.array([a[-1] - a[0] for a in xyz])
+                ax.quiver(*origin, *delta, color=color, label=label,
+                          linewidth=2, arrow_length_ratio=0.10)
+            else:
+                ax.plot(*xyz, color=color, label=label)
+        if "markers" in trace.mode:
+            ax.scatter(*xyz, color=trace.marker.color, s=25, label=label)
+        if "text" in trace.mode and trace.text is not None:
+            for x, y, z, text in zip(*xyz, trace.text):
+                ax.text(x, y, z, text)
+    ax.set(xlabel=plotly_fig.layout.scene.xaxis.title.text,
+           ylabel=plotly_fig.layout.scene.yaxis.title.text,
+           zlabel=plotly_fig.layout.scene.zaxis.title.text,
+           title=plotly_fig.layout.title.text)
+    if points:
+        all_points = np.concatenate(points)
+        lo, hi = all_points.min(axis=0), all_points.max(axis=0)
+        center = (lo + hi) / 2
+        half = max(float(np.max(hi - lo)) / 2, 1) * 1.05
+        ax.set_xlim(center[0] - half, center[0] + half)
+        ax.set_ylim(center[1] - half, center[1] + half)
+        ax.set_zlim(center[2] - half, center[2] + half)
+    ax.set_box_aspect((1, 1, 1))
+    ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=8)
+    fig.tight_layout()
+    if show:
+        plt.show()
+    return fig
+
+
 def plot_3d(
     traces=None,
     t_arrs=None,
@@ -302,6 +352,8 @@ def plot_earth_departure(
     traces=None,
     t_arrs=None,
     labels=None,
+    backend="plotly",
+    renderer=None,
 ):
     """Plot Earth-centered departure geometry in the ECI frame.
 
@@ -312,7 +364,11 @@ def plot_earth_departure(
     ``plot_3d``; orbit positions must be Earth-centered ECI in km.
     The launch azimuth arrow is the local horizontal projection of the
     departure asymptote, with beta measured clockwise from local north.
+    Set backend="matplotlib" for a static figure, or renderer="png"
+    for PDF-friendly Plotly output (requires Kaleido and Chrome).
     """
+    if backend not in ("plotly", "matplotlib"):
+        raise ValueError("backend must be 'plotly' or 'matplotlib'")
     lat = np.deg2rad(launch_lat_deg)
     lon = np.deg2rad(
         launch_lon_deg if alpha_launch is None else alpha_launch * RAD_TO_DEG
@@ -380,8 +436,10 @@ def plot_earth_departure(
         "xaxis_title": "ECI x [km]", "yaxis_title": "ECI y [km]",
         "zaxis_title": "ECI z [km]", "aspectmode": "data",
     })
+    if backend == "matplotlib":
+        return _matplotlib_3d(fig, show=show)
     if show:
-        fig.show()
+        fig.show(renderer=renderer)
     return fig
 
 

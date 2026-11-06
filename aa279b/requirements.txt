@@ -9,3 +9,4 @@ IPython
 plotly
 tqdm
 pandas
+kaleido>=1
