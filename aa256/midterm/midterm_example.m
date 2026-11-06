@@ -40,6 +40,12 @@ A, B, D, alpha, beta, delta
 %% 5-8. Thermal + moisture response and residual stresses
 [ep_mid,k_mid,N_nm,M_nm,ep_free,ep_constrained,ep_residual,sigma_global,sigma_local] = ...
     nonmechanical_response(Q_bar,Ts,z,alpha,beta,delta,a,b,deltaT,deltaC);
+
+% Verify laminate equilibrium
+ABD = [A B; B' D];
+error = ABD*[ep_mid; k_mid] - [N_nm; M_nm];
+fprintf("ABD equilibrium error: %.3e\n", norm(error));
+
 % Equivalent loads, not actual applied force or moment.
 N_nm_lbf_per_in = 1e6*N_nm
 M_nm_lbf = 1e6*M_nm
@@ -53,3 +59,20 @@ for k = 1:n_layers
     disp('Residual global stress (ksi):'); disp(1e3*sigma_global(:,:,k));
     disp('Residual local stress (ksi):'); disp(1e3*sigma_local(:,:,k));
 end
+
+N_res = zeros(3,1);
+M_res = zeros(3,1);
+
+for k = 1:n_layers
+    z0 = z(k);
+    z1 = z(k+1);
+    s0 = sigma_global(:,1,k);
+    s1 = sigma_global(:,2,k);
+
+    N_res = N_res + (z1-z0)*(s0+s1)/2;
+    M_res = M_res + (z1-z0)/6 * ...
+        ((2*z0+z1)*s0 + (z0+2*z1)*s1);
+end
+
+fprintf('Residual force error: %.3e lbf/in\n', norm(N_res)*1e6);
+fprintf('Residual moment error: %.3e lbf\n', norm(M_res)*1e6);
