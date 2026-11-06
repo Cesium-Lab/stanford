@@ -350,9 +350,17 @@ def launch_PCI(t_arr_utc: np.ndarray, lat: float, lon: float, alt: float, theta_
     launch_v_PCI = launch_arr_PCI[:,1,:]
     return launch_r_PCI, launch_v_PCI
 
+
 ###########################################################################
-#                   Sanity
+#                   Random
 ###########################################################################
+
+def spreading_loss(R):
+    """dB/m2"""
+    if R < 1:
+        return np.nan
+    return -70.99 - 20*np.log10(R)
+
 
 # Vallado 4e example 2-6 p. 119 (pdf p. 146)
 assert np.allclose(
@@ -369,4 +377,3 @@ assert np.allclose(
     ),
     np.array([[6525.344, 6861.535, 6449.125], [4.902276, 5.533124, -1.975709]]),
 )
-
