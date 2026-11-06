@@ -14,7 +14,7 @@ from constants import AU_TO_KM
 from orbital import OrbitalFlyby
 
 def plot_3d(
-    traces,
+    traces=None,
     t_arrs=None,
     labels=None,
     title="3D Trajectories",
@@ -27,12 +27,13 @@ def plot_3d(
     units="km",
     height=800,
     show=True,
+    vectors=None,
 ):
-    """Plot one or more 3D trajectories with optional spherical bodies.
+    """Plot 3D trajectories, spherical bodies, and vector arrows.
 
     Parameters
     ----------
-    traces : np.ndarray (N, 3) or list of np.ndarray
+    traces : np.ndarray (N, 3) or list of np.ndarray, optional
         One or more 3D position trajectories.
     t_arrs : np.ndarray (N,) or list of np.ndarray, optional
         Time arrays, either shared or one per trajectory.
@@ -55,13 +56,18 @@ def plot_3d(
         Position units for axis labels.
     height : int
         Figure height in pixels.
+    vectors : dict or list of dict, optional
+        Each arrow requires a nonzero "direction" (3,). Optional keys are
+        "origin" (default zero), "length" (default direction magnitude, in
+        plot units), "name", "color", and "width". Direction is normalized
+        before applying length, allowing velocity vectors to be scaled for display.
     show : bool
         Display the figure immediately.
 
     Returns
     -------
-    fig : go.Figure | None
-        Plotly figure or nothing if `show=False`
+    fig : go.Figure
+        Figure, whether or not it is displayed.
     """
 
     fig = go.Figure()
@@ -69,7 +75,9 @@ def plot_3d(
     # --------------------------------------------------
     # 1. Normalize trajectory inputs
     # --------------------------------------------------
-    if isinstance(traces, np.ndarray):
+    if traces is None:
+        traces = []
+    elif isinstance(traces, np.ndarray):
         if traces.ndim == 2:
             traces = [traces]
         elif traces.ndim == 3:
@@ -82,8 +90,6 @@ def plot_3d(
     traces = [np.asarray(r, dtype=float) for r in traces]
     num_traces = len(traces)
 
-    if num_traces == 0:
-        raise ValueError("At least one trajectory is required.")
 
     # Labels
     if labels is None:
@@ -228,6 +234,41 @@ def plot_3d(
                 marker={"size": 6, "color": color}
             ))
 
+    # Vector shafts and arrowheads share a legend entry.
+    if vectors is not None:
+        if isinstance(vectors, dict):
+            vectors = [vectors]
+        for idx, vector in enumerate(vectors):
+            origin = np.asarray(vector.get("origin", [0, 0, 0]), dtype=float)
+            direction = np.asarray(vector["direction"], dtype=float)
+            if (origin.shape != (3,) or direction.shape != (3,)
+                    or not np.all(np.isfinite(origin))
+                    or not np.all(np.isfinite(direction))):
+                raise ValueError("Vector origin and direction must be finite (3,) arrays.")
+            magnitude = np.linalg.norm(direction)
+            length = float(vector.get("length", magnitude))
+            if magnitude == 0 or not np.isfinite(length) or length <= 0:
+                raise ValueError("Vector direction must be nonzero and length positive and finite.")
+            direction = direction / magnitude
+            endpoint = origin + length * direction
+            color = vector.get("color", colors[idx % len(colors)])
+            name = vector.get("name", f"Vector {idx + 1}")
+            group = f"vector-{idx}"
+            fig.add_trace(go.Scatter3d(
+                x=[origin[0], endpoint[0]], y=[origin[1], endpoint[1]],
+                z=[origin[2], endpoint[2]], mode="lines", name=name,
+                legendgroup=group,
+                line={"color": color, "width": vector.get("width", 5)},
+            ))
+            fig.add_trace(go.Cone(
+                x=[endpoint[0]], y=[endpoint[1]], z=[endpoint[2]],
+                u=[direction[0]], v=[direction[1]], w=[direction[2]],
+                anchor="tip", sizemode="absolute", sizeref=0.06 * length,
+                colorscale=[[0, color], [1, color]], showscale=False,
+                name=f"{name} arrowhead", legendgroup=group,
+                showlegend=False, hoverinfo="skip",
+            ))
+
     # --------------------------------------------------
     # 4. Layout
     # --------------------------------------------------
@@ -247,7 +288,6 @@ def plot_3d(
 
     if show:
         fig.show()
-        return None
 
     return fig
 
@@ -259,12 +299,19 @@ def plot_earth_departure(
     earth_radius_km=R_EARTH,
     vector_display_km=12000.0,
     show=True,
+    traces=None,
+    t_arrs=None,
+    labels=None,
 ):
     """Plot Earth-centered departure geometry in the ECI frame.
 
-    ``v_inf_eci`` is drawn from the launch site and is scaled only for
+    ``v_inf_eci`` is drawn from Earth's center and is scaled only for
     display. ``alpha_launch`` is the inertial right ascension of the launch
     site's radius at launch; if omitted, the supplied longitude is used.
+    Optional ``traces`` (N, 3), ``t_arrs``, and ``labels`` are passed to
+    ``plot_3d``; orbit positions must be Earth-centered ECI in km.
+    The launch azimuth arrow is the local horizontal projection of the
+    departure asymptote, with beta measured clockwise from local north.
     """
     lat = np.deg2rad(launch_lat_deg)
     lon = np.deg2rad(
@@ -284,68 +331,55 @@ def plot_earth_departure(
     ])
     r_launch = earth_radius_km * r_hat
 
-    # Unit sphere scaled to Earth radius.
-    u = np.linspace(0, 2 * np.pi, 64)
-    v = np.linspace(-np.pi / 2, np.pi / 2, 32)
-    sphere = {
-        "x": earth_radius_km * np.outer(np.cos(u), np.cos(v)),
-        "y": earth_radius_km * np.outer(np.sin(u), np.cos(v)),
-        "z": earth_radius_km * np.outer(np.ones_like(u), np.sin(v)),
-    }
-    fig = go.Figure(go.Surface(
-        **sphere, name="Earth", colorscale=[[0, "#4f81bd"], [1, "#b8d8f0"]],
-        opacity=0.48, showscale=False, hoverinfo="skip"
-    ))
-
-    def add_arrow(origin, direction, length, color, name, width=5):
-        origin = np.asarray(origin, dtype=float)
-        direction = np.asarray(direction, dtype=float)
-        endpoint = origin + length * direction
-        fig.add_trace(go.Scatter3d(
-            x=[origin[0], endpoint[0]], y=[origin[1], endpoint[1]],
-            z=[origin[2], endpoint[2]], mode="lines", name=name,
-            line={"color": color, "width": width}
-        ))
-        fig.add_trace(go.Cone(
-            x=[endpoint[0]], y=[endpoint[1]], z=[endpoint[2]],
-            u=[direction[0]], v=[direction[1]], w=[direction[2]],
-            anchor="tip", sizemode="absolute", sizeref=0.06 * length,
-            colorscale=[[0, color], [1, color]], showscale=False,
-            name=f"{name} arrowhead", showlegend=False, hoverinfo="skip"
-        ))
+    vectors = [
+        {"direction": r_hat, "length": 1.15 * earth_radius_km,
+         "color": "crimson", "name": "Launch radius", "width": 4},
+    ]
+    for direction, color, name in [
+        (r_hat, "darkorange", "Local up"),
+        (east_hat, "seagreen", "Local east"),
+        (north_hat, "purple", "Local north"),
+    ]:
+        vectors.append({
+            "origin": r_launch, "direction": direction,
+            "length": 0.60 * earth_radius_km,
+            "color": color, "name": name, "width": 4,
+        })
+    v_inf = np.asarray(v_inf_eci, dtype=float).reshape(3)
+    vectors.append({
+        "direction": v_inf,
+        "length": vector_display_km, "color": "firebrick",
+        "name": "Departure asymptote", "width": 7,
+    })
+    v_norm = np.linalg.norm(v_inf)
+    if not np.isfinite(v_norm) or v_norm == 0:
+        raise ValueError("v_inf_eci must be finite and nonzero")
+    v_hat = v_inf / v_norm
+    horizontal = v_hat - np.dot(v_hat, r_hat) * r_hat
+    if np.linalg.norm(horizontal) > 1e-12:
+        beta = np.arctan2(horizontal @ east_hat, horizontal @ north_hat)
+        beta_deg = np.rad2deg(beta) % 360
+        vectors.append({
+            "origin": r_launch, "direction": horizontal,
+            "length": 0.85 * earth_radius_km, "color": "deepskyblue",
+            "name": f"Launch azimuth β = {beta_deg:.3f}°", "width": 7,
+        })
+    fig = plot_3d(
+        traces=traces, t_arrs=t_arrs, labels=labels, vectors=vectors,
+        bodies={"name": "Earth", "radius": earth_radius_km,
+                "color": "#4f81bd", "opacity": 0.48},
+        title="Earth-centered departure geometry", show=False,
+    )
 
     fig.add_trace(go.Scatter3d(
         x=[r_launch[0]], y=[r_launch[1]], z=[r_launch[2]],
         mode="markers+text", text=["launch site"], textposition="top center",
         marker={"size": 6, "color": "crimson"}, name="Launch site"
     ))
-    add_arrow(np.zeros(3), r_hat, 1.15 * earth_radius_km,
-              "crimson", "Launch radius", width=4)
-
-    local_length = 0.60 * earth_radius_km
-    add_arrow(r_launch, r_hat, local_length, "darkorange", "Local up", width=4)
-    add_arrow(r_launch, east_hat, local_length, "seagreen", "Local east", width=4)
-    add_arrow(r_launch, north_hat, local_length, "purple", "Local north", width=4)
-
-    v_inf_eci = np.asarray(v_inf_eci, dtype=float).reshape(3)
-    v_norm = np.linalg.norm(v_inf_eci)
-    if v_norm == 0:
-        raise ValueError("v_inf_eci must be nonzero")
-    add_arrow([0,0,0], v_inf_eci / v_norm, vector_display_km,
-              "firebrick", r"$v_{\\infty,dep}$", width=7)
-
-    limit = 1.55 * earth_radius_km
-    fig.update_layout(
-        title="Earth-centered departure geometry",
-        scene={
-            "xaxis_title": "ECI x [km]", "yaxis_title": "ECI y [km]",
-            "zaxis_title": "ECI z [km]", "aspectmode": "cube",
-            "xaxis": {"range": [-limit, limit]},
-            "yaxis": {"range": [-limit, limit]},
-            "zaxis": {"range": [-limit, limit]},
-        }, template="plotly_white", height=800,
-        margin={"l": 0, "r": 0, "b": 0, "t": 50},
-    )
+    fig.update_layout(scene={
+        "xaxis_title": "ECI x [km]", "yaxis_title": "ECI y [km]",
+        "zaxis_title": "ECI z [km]", "aspectmode": "data",
+    })
     if show:
         fig.show()
     return fig
