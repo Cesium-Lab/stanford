@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 from tqdm import tqdm
 
 from constants import DEG_TO_RAD, MU_EARTH, W_EARTH, R_EARTH, AU_TO_KM, MU_SUN, ECLIPTIC_ANGLE, CTY_TO_DAY, J2000_JD
-from angle import dcm_x, dcm_z
+from angle import dcm_x, dcm_z, wrap_to_2pi, wrap_to_pi
 from spacetime import greg_to_jd
 from matlab.engine import MatlabEngine
 
@@ -206,6 +206,43 @@ def cartesian_from_lla(lat: float, lon: float, alt_km = 0.0, r_body_km = R_EARTH
     
     return r_cart
 
+def lla_from_cartesian(r_cart: np.ndarray, r_body_km = R_EARTH, deg = True) -> tuple[float, float, float]:
+    """Convert cartesian coordiantes to latitude, longitude, and altitude.
+    Spherical body.
+
+    Parameters
+    ----------
+    r_cart : np.ndarray (3,)
+        Cartesian position [km]
+    r_body_km : float
+        Body radius [km]
+    deg : bool
+        Whether input angles are in degrees
+
+    Returns
+    -------
+
+    lat, lon : float
+        Lat,lon [deg if deg=True, else rad]
+    alt_km : float
+        Altitude above SPHERICAL surface [km]
+    """
+
+    rho = norm(r_cart)
+
+    lon = wrap_to_pi(np.arctan2(r_cart[1], r_cart[0]))
+    lat = wrap_to_pi(np.arcsin(r_cart[2] / rho))
+
+    alt_km = rho - r_body_km
+
+    if deg:
+        lat /= DEG_TO_RAD
+        lon /= DEG_TO_RAD
+        
+    
+    return lat, lon, alt_km
+
+
 ###########################################################################
 #                   PCI <--> PCPF
 ###########################################################################
@@ -261,6 +298,18 @@ def calc_PCI_from_PCPF(r_PCPF: np.ndarray, v_PCPF: np.ndarray, t_utc: float, the
     v_PCI = dcm_PCI_wrt_PCPF @ (v_PCPF + np.cross([0,0,w_body], r_PCPF))
     
     return r_PCI, v_PCI
+
+def calc_PCPF_from_PCI(r_PCI: np.ndarray, v_PCI: np.ndarray, t_utc: float, theta_ref: float, t_ref: float, w_body = W_EARTH):
+
+    # Earth rotation angle
+    theta_PCPF_wrt_PCI = calc_theta_g(t_utc, theta_ref, t_ref, w_body)
+    
+    dcm_PCPF_wrt_PCI = dcm_z(theta_PCPF_wrt_PCI)
+    
+    r_PCPF = dcm_PCPF_wrt_PCI @ r_PCI
+    v_PCPF = dcm_PCPF_wrt_PCI @ (v_PCI - np.cross([0,0,w_body], r_PCI))
+    
+    return r_PCPF, v_PCPF
 
 ###########################################################################
 #                   PCI <--> LLA

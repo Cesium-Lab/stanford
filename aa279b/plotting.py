@@ -13,7 +13,29 @@ import matplotlib.pyplot as plt
 from constants import AU_TO_KM
 from orbital import OrbitalFlyby
 
-def _matplotlib_3d(plotly_fig, show=True):
+def _plotly_camera(elev, azim, projection, camera_distance):
+    """Camera looking toward the origin, with angles measured in degrees."""
+    if projection not in ("ortho", "persp"):
+        raise ValueError("projection must be 'ortho' or 'persp'")
+    if not np.all(np.isfinite([elev, azim, camera_distance])) or camera_distance <= 0:
+        raise ValueError("Camera angles must be finite and camera_distance positive")
+    el, az = np.deg2rad([elev, azim])
+    return {
+        "eye": {
+            "x": camera_distance * np.cos(el) * np.cos(az),
+            "y": camera_distance * np.cos(el) * np.sin(az),
+            "z": camera_distance * np.sin(el),
+        },
+        "up": {"x": -np.sin(el) * np.cos(az),
+               "y": -np.sin(el) * np.sin(az), "z": np.cos(el)},
+        "projection": {"type": "orthographic" if projection == "ortho" else "perspective"},
+    }
+
+def _matplotlib_3d(
+    plotly_fig, show=True,
+    elev=np.rad2deg(np.arctan(1 / np.sqrt(2))), azim=45,
+    projection="ortho",
+):
     """Render the shared 3D geometry as a static Matplotlib figure."""
     fig = plt.figure(figsize=(11, 8))
     ax = fig.add_subplot(111, projection="3d")
@@ -39,10 +61,17 @@ def _matplotlib_3d(plotly_fig, show=True):
             else:
                 ax.plot(*xyz, color=color, label=label)
         if "markers" in trace.mode:
-            ax.scatter(*xyz, color=trace.marker.color, s=25, label=label)
+            if trace.name == "Launch site":
+                # Line3D markers respect zorder instead of being depth-sorted
+                # as one collection against the entire Earth surface.
+                ax.plot(*xyz, linestyle="none", marker="o", markersize=7,
+                        color=trace.marker.color, markeredgecolor="white",
+                        label=label, zorder=100)
+            else:
+                ax.scatter(*xyz, color=trace.marker.color, s=25, label=label)
         if "text" in trace.mode and trace.text is not None:
             for x, y, z, text in zip(*xyz, trace.text):
-                ax.text(x, y, z, text)
+                ax.text(x, y, z, text, zorder=101)
     ax.set(xlabel=plotly_fig.layout.scene.xaxis.title.text,
            ylabel=plotly_fig.layout.scene.yaxis.title.text,
            zlabel=plotly_fig.layout.scene.zaxis.title.text,
@@ -56,6 +85,8 @@ def _matplotlib_3d(plotly_fig, show=True):
         ax.set_ylim(center[1] - half, center[1] + half)
         ax.set_zlim(center[2] - half, center[2] + half)
     ax.set_box_aspect((1, 1, 1))
+    ax.set_proj_type(projection)
+    ax.view_init(elev=elev, azim=azim)
     ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=8)
     fig.tight_layout()
     if show:
@@ -78,6 +109,11 @@ def plot_3d(
     height=800,
     show=True,
     vectors=None,
+    trace_colors=None,
+    elev=None,
+    azim=None,
+    projection="ortho",
+    camera_distance=None,
 ):
     """Plot 3D trajectories, spherical bodies, and vector arrows.
 
@@ -111,8 +147,19 @@ def plot_3d(
         "origin" (default zero), "length" (default direction magnitude, in
         plot units), "name", "color", and "width". Direction is normalized
         before applying length, allowing velocity vectors to be scaled for display.
+    trace_colors : str or list of str, optional
+        One color for all trajectories, or one color per trajectory.
     show : bool
         Display the figure immediately.
+    elev, azim : float
+        Camera elevation and azimuth in degrees; azimuth is measured from +x
+        toward +y. Omitted angles use Plotly's default eye direction.
+    projection : str
+        "ortho" or "persp".
+    camera_distance : float, optional
+        Positive camera distance in Plotly scene units. By default choose a
+        distance that frames the data. Larger values zoom out. Orthographic
+        zoom scales the axis bounds because eye distance alone does not zoom.
 
     Returns
     -------
@@ -139,6 +186,10 @@ def plot_3d(
 
     traces = [np.asarray(r, dtype=float) for r in traces]
     num_traces = len(traces)
+    if isinstance(trace_colors, str):
+        trace_colors = [trace_colors] * num_traces
+    elif trace_colors is not None and len(trace_colors) != num_traces:
+        raise ValueError("Number of trace colors must match trajectories.")
 
 
     # Labels
@@ -241,7 +292,7 @@ def plot_3d(
         else:
             r_plot = r
 
-        color = colors[idx % len(colors)]
+        color = trace_colors[idx] if trace_colors is not None else colors[idx % len(colors)]
 
         # Trajectory
         fig.add_trace(go.Scatter3d(
@@ -322,16 +373,47 @@ def plot_3d(
     # --------------------------------------------------
     # 4. Layout
     # --------------------------------------------------
+    # Equal physical axis ranges prevent nearly planar trajectories from
+    # producing enormous x/y scene dimensions under aspectmode="data".
+    plotted_points = []
+    for trace in fig.data:
+        xyz = [np.asarray(getattr(trace, axis), dtype=float).ravel()
+               for axis in "xyz"]
+        points = np.column_stack(xyz)
+        plotted_points.append(points[np.all(np.isfinite(points), axis=1)])
+    auto_distance = max(3.0, 3.0 * (height - 50) / 800)
+    if camera_distance is None:
+        camera_distance = auto_distance
+    if not np.isfinite(camera_distance) or camera_distance <= 0:
+        raise ValueError("camera_distance must be positive and finite")
+    zoom_scale = camera_distance / auto_distance if projection == "ortho" else 1.0
+    axis_ranges = {}
+    if plotted_points and any(len(p) for p in plotted_points):
+        points = np.concatenate(plotted_points)
+        low, high = points.min(axis=0), points.max(axis=0)
+        center = (low + high) / 2
+        half_span = max(float(np.max(high - low)) / 2, 1e-9) * 1.10 * zoom_scale
+        axis_ranges = {
+            f"{axis}axis": {"range": [c - half_span, c + half_span]}
+            for axis, c in zip("xyz", center)
+        }
     fig.update_layout(
         title=title,
         scene={
             "xaxis_title": f"X [{units}]",
             "yaxis_title": f"Y [{units}]",
             "zaxis_title": f"Z [{units}]",
-            "aspectmode": "data"
+            "aspectmode": "cube",
+            **axis_ranges,
+            "camera": _plotly_camera(
+                np.rad2deg(np.arctan(1 / np.sqrt(2))) if elev is None else elev,
+                45 if azim is None else azim,
+                projection, auto_distance if projection == "ortho" else camera_distance,
+            ),
         },
         template="plotly_white",
-        legend={"x": 0.02, "y": 0.98},
+        legend={"x": 0.02, "y": 0.98, "bgcolor": "rgba(0,0,0,0)",
+                "borderwidth": 0},
         height=height,
         margin={"l": 0, "r": 0, "b": 0, "t": 50}
     )
@@ -353,7 +435,12 @@ def plot_earth_departure(
     t_arrs=None,
     labels=None,
     backend="plotly",
+    orbit_color="#ffff00",
     renderer=None,
+    elev=np.rad2deg(np.arctan(1 / np.sqrt(2))),
+    azim=45,
+    projection="ortho",
+    camera_distance=None,
 ):
     """Plot Earth-centered departure geometry in the ECI frame.
 
@@ -366,6 +453,10 @@ def plot_earth_departure(
     departure asymptote, with beta measured clockwise from local north.
     Set backend="matplotlib" for a static figure, or renderer="png"
     for PDF-friendly Plotly output (requires Kaleido and Chrome).
+    Both backends accept ``elev`` and ``azim`` in degrees, and
+    ``projection`` ("ortho" or "persp"); defaults give a +x/+y/+z isometric view.
+    ``camera_distance`` controls Plotly camera distance in scene units.
+    ``orbit_color`` sets the trajectory color for both backends (default bright yellow).
     """
     if backend not in ("plotly", "matplotlib"):
         raise ValueError("backend must be 'plotly' or 'matplotlib'")
@@ -392,9 +483,9 @@ def plot_earth_departure(
          "color": "crimson", "name": "Launch radius", "width": 4},
     ]
     for direction, color, name in [
-        (r_hat, "darkorange", "Local up"),
-        (east_hat, "seagreen", "Local east"),
-        (north_hat, "purple", "Local north"),
+        (r_hat, "blue", "Local up"),
+        (east_hat, "green", "Local east"),
+        (north_hat, "red", "Local north"),
     ]:
         vectors.append({
             "origin": r_launch, "direction": direction,
@@ -422,9 +513,12 @@ def plot_earth_departure(
         })
     fig = plot_3d(
         traces=traces, t_arrs=t_arrs, labels=labels, vectors=vectors,
+        trace_colors=orbit_color,
         bodies={"name": "Earth", "radius": earth_radius_km,
-                "color": "#4f81bd", "opacity": 0.48},
+                "color": "#4f81bd", "opacity": 0.75},
         title="Earth-centered departure geometry", show=False,
+        elev=elev, azim=azim, projection=projection,
+        camera_distance=camera_distance,
     )
 
     fig.add_trace(go.Scatter3d(
@@ -437,7 +531,9 @@ def plot_earth_departure(
         "zaxis_title": "ECI z [km]", "aspectmode": "data",
     })
     if backend == "matplotlib":
-        return _matplotlib_3d(fig, show=show)
+        return _matplotlib_3d(
+            fig, show=show, elev=elev, azim=azim, projection=projection,
+        )
     if show:
         fig.show(renderer=renderer)
     return fig

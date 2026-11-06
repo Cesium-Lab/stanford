@@ -47,7 +47,8 @@ def angle_between(u, v):
 
     # Avoid division by zero for zero vectors
     if u_norm < 1e-12 or v_norm < 1e-12:
-        raise ValueError("Zero vectors do not have a defined angle.")
+        return np.nan
+        # raise ValueError("Zero vectors do not have a defined angle.")
 
     dot_product = np.dot(u, v)
     cosine_similarity = dot_product / (u_norm * v_norm)
