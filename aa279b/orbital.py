@@ -169,11 +169,11 @@ def rv_from_coe(a: float, e: float, i: float, raan: float, aop: float, M: float,
     return r_I, v_I
 
 ###########################################################################
-#                   PCPF <--> LLA
+#                   cart <--> LLA
 ###########################################################################
 
-def PCPF_from_lla(lat: float, lon: float, alt_km = 0.0, r_body_km = R_EARTH, deg = True):
-    """Convert latitude, longitude, and altitude to planet-centered, planet-fixed.
+def cartesian_from_lla(lat: float, lon: float, alt_km = 0.0, r_body_km = R_EARTH, deg = True):
+    """Convert latitude, longitude, and altitude to cartesian coordinates.
     Spherical body.
 
     Parameters
@@ -189,8 +189,8 @@ def PCPF_from_lla(lat: float, lon: float, alt_km = 0.0, r_body_km = R_EARTH, deg
 
     Returns
     -------
-    r_PCPF : np.ndarray (3,)
-        Body-fixed position [km]
+    r_cart : np.ndarray (3,)
+        Cartesian position [km]
     """
     if deg:
         lat *= DEG_TO_RAD
@@ -198,13 +198,13 @@ def PCPF_from_lla(lat: float, lon: float, alt_km = 0.0, r_body_km = R_EARTH, deg
         
     rho = r_body_km + alt_km
     
-    r_PCPF = np.array([
+    r_cart = np.array([
         rho * np.cos(lat) * np.cos(lon),
         rho * np.cos(lat) * np.sin(lon),
         rho * np.sin(lat)
     ])
     
-    return r_PCPF
+    return r_cart
 
 ###########################################################################
 #                   PCI <--> PCPF
@@ -293,7 +293,7 @@ def launch_PCI(t_arr_utc: np.ndarray, lat: float, lon: float, alt: float, theta_
     launch_r_PCI, launch_v_PCI : np.ndarray (N, 3)
         Inertial positions [km] and velocities [km/s]
     """
-    launch_r_PCPF = PCPF_from_lla(lat, lon, alt, r_body_km, deg)
+    launch_r_PCPF = cartesian_from_lla(lat, lon, alt, r_body_km, deg)
     launch_v_PCPF = np.zeros(3)
     
     launch_arr_PCI = np.array([calc_PCI_from_PCPF(launch_r_PCPF, launch_v_PCPF, t, theta_ref, t_ref, w_body) for t in t_arr_utc])
