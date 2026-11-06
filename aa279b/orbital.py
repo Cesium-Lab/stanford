@@ -119,11 +119,11 @@ def e_sp(r,v,mu):
 
 def ECI_from_HCI():
     """HCI to ICRF/J2000 ECI"""
-    return np.array(
+    return np.array([
         [1, 0, 0],
         [0, np.cos(ECLIPTIC_ANGLE), -np.sin(ECLIPTIC_ANGLE)],
         [0, np.sin(ECLIPTIC_ANGLE), np.cos(ECLIPTIC_ANGLE)]
-    )
+    ])
 
 ###########################################################################
 #                   RV <-- COE

@@ -2,7 +2,7 @@ import numpy as np
 import plotly.graph_objects as go
 from scipy.interpolate import CubicSpline
 
-from constants import R_EARTH
+from constants import R_EARTH, RAD_TO_DEG
 
 import numpy as np
 import plotly.graph_objects as go
@@ -195,7 +195,7 @@ def plot_3d(
             mode="lines",
             name=label,
             legendgroup=label,
-            line=dict(color=color, width=5)
+            line={"color": color, "width": 5}
         ))
 
         # Start marker
@@ -208,11 +208,11 @@ def plot_3d(
                 name=f"{label} Start",
                 legendgroup=label,
                 showlegend=False,
-                marker=dict(
-                    size=6,
-                    color=color,
-                    symbol="diamond"
-                )
+                marker={
+                    "size": 6,
+                    "color": color,
+                    "symbol": "diamond"
+                }
             ))
 
         # End marker
@@ -225,7 +225,7 @@ def plot_3d(
                 name=f"{label} End",
                 legendgroup=label,
                 showlegend=False,
-                marker=dict(size=6, color=color)
+                marker={"size": 6, "color": color}
             ))
 
     # --------------------------------------------------
@@ -233,16 +233,16 @@ def plot_3d(
     # --------------------------------------------------
     fig.update_layout(
         title=title,
-        scene=dict(
-            xaxis_title=f"X [{units}]",
-            yaxis_title=f"Y [{units}]",
-            zaxis_title=f"Z [{units}]",
-            aspectmode="data"
-        ),
+        scene={
+            "xaxis_title": f"X [{units}]",
+            "yaxis_title": f"Y [{units}]",
+            "zaxis_title": f"Z [{units}]",
+            "aspectmode": "data"
+        },
         template="plotly_white",
-        legend=dict(x=0.02, y=0.98),
+        legend={"x": 0.02, "y": 0.98},
         height=height,
-        margin=dict(l=0, r=0, b=0, t=50)
+        margin={"l": 0, "r": 0, "b": 0, "t": 50}
     )
 
     if show:
@@ -250,6 +250,106 @@ def plot_3d(
         return None
 
     return fig
+
+def plot_earth_departure(
+    v_inf_eci,
+    launch_lat_deg,
+    launch_lon_deg,
+    alpha_launch=None,
+    earth_radius_km=R_EARTH,
+    vector_display_km=12000.0,
+    show=True,
+):
+    """Plot Earth-centered departure geometry in the ECI frame.
+
+    ``v_inf_eci`` is drawn from the launch site and is scaled only for
+    display. ``alpha_launch`` is the inertial right ascension of the launch
+    site's radius at launch; if omitted, the supplied longitude is used.
+    """
+    lat = np.deg2rad(launch_lat_deg)
+    lon = np.deg2rad(
+        launch_lon_deg if alpha_launch is None else alpha_launch * RAD_TO_DEG
+    )
+
+    r_hat = np.array([
+        np.cos(lat) * np.cos(lon),
+        np.cos(lat) * np.sin(lon),
+        np.sin(lat),
+    ])
+    east_hat = np.array([-np.sin(lon), np.cos(lon), 0.0])
+    north_hat = np.array([
+        -np.sin(lat) * np.cos(lon),
+        -np.sin(lat) * np.sin(lon),
+        np.cos(lat),
+    ])
+    r_launch = earth_radius_km * r_hat
+
+    # Unit sphere scaled to Earth radius.
+    u = np.linspace(0, 2 * np.pi, 64)
+    v = np.linspace(-np.pi / 2, np.pi / 2, 32)
+    sphere = {
+        "x": earth_radius_km * np.outer(np.cos(u), np.cos(v)),
+        "y": earth_radius_km * np.outer(np.sin(u), np.cos(v)),
+        "z": earth_radius_km * np.outer(np.ones_like(u), np.sin(v)),
+    }
+    fig = go.Figure(go.Surface(
+        **sphere, name="Earth", colorscale=[[0, "#4f81bd"], [1, "#b8d8f0"]],
+        opacity=0.48, showscale=False, hoverinfo="skip"
+    ))
+
+    def add_arrow(origin, direction, length, color, name, width=5):
+        origin = np.asarray(origin, dtype=float)
+        direction = np.asarray(direction, dtype=float)
+        endpoint = origin + length * direction
+        fig.add_trace(go.Scatter3d(
+            x=[origin[0], endpoint[0]], y=[origin[1], endpoint[1]],
+            z=[origin[2], endpoint[2]], mode="lines", name=name,
+            line={"color": color, "width": width}
+        ))
+        fig.add_trace(go.Cone(
+            x=[endpoint[0]], y=[endpoint[1]], z=[endpoint[2]],
+            u=[direction[0]], v=[direction[1]], w=[direction[2]],
+            anchor="tip", sizemode="absolute", sizeref=0.06 * length,
+            colorscale=[[0, color], [1, color]], showscale=False,
+            name=f"{name} arrowhead", showlegend=False, hoverinfo="skip"
+        ))
+
+    fig.add_trace(go.Scatter3d(
+        x=[r_launch[0]], y=[r_launch[1]], z=[r_launch[2]],
+        mode="markers+text", text=["launch site"], textposition="top center",
+        marker={"size": 6, "color": "crimson"}, name="Launch site"
+    ))
+    add_arrow(np.zeros(3), r_hat, 1.15 * earth_radius_km,
+              "crimson", "Launch radius", width=4)
+
+    local_length = 0.60 * earth_radius_km
+    add_arrow(r_launch, r_hat, local_length, "darkorange", "Local up", width=4)
+    add_arrow(r_launch, east_hat, local_length, "seagreen", "Local east", width=4)
+    add_arrow(r_launch, north_hat, local_length, "purple", "Local north", width=4)
+
+    v_inf_eci = np.asarray(v_inf_eci, dtype=float).reshape(3)
+    v_norm = np.linalg.norm(v_inf_eci)
+    if v_norm == 0:
+        raise ValueError("v_inf_eci must be nonzero")
+    add_arrow([0,0,0], v_inf_eci / v_norm, vector_display_km,
+              "firebrick", r"$v_{\\infty,dep}$", width=7)
+
+    limit = 1.55 * earth_radius_km
+    fig.update_layout(
+        title="Earth-centered departure geometry",
+        scene={
+            "xaxis_title": "ECI x [km]", "yaxis_title": "ECI y [km]",
+            "zaxis_title": "ECI z [km]", "aspectmode": "cube",
+            "xaxis": {"range": [-limit, limit]},
+            "yaxis": {"range": [-limit, limit]},
+            "zaxis": {"range": [-limit, limit]},
+        }, template="plotly_white", height=800,
+        margin={"l": 0, "r": 0, "b": 0, "t": 50},
+    )
+    if show:
+        fig.show()
+    return fig
+
 
 def plot_flybys(flybys: list[OrbitalFlyby], xlim = None, ylim = None):
 
@@ -359,8 +459,8 @@ def plot_hyperbolic_characteristics(flyby: OrbitalFlyby, color: str):
 #         show=False
 #     )
 
-#     fig.update_layout(scene_camera=dict(
-#         eye=dict(x=0.5, y=0.5, z=2)
+#     fig.update_layout(scene_camera={
+#         "eye": {"x": 0.5, "y": 0.5, "z": 2}
 #     ))
 
 #     fig.show()
