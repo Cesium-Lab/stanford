@@ -437,7 +437,7 @@ def plot_earth_departure(
     backend="plotly",
     orbit_color="#ffff00",
     renderer=None,
-    elev=np.rad2deg(np.arctan(1 / np.sqrt(2))),
+    elev =None,
     azim=45,
     projection="ortho",
     camera_distance=None,
@@ -458,6 +458,8 @@ def plot_earth_departure(
     ``camera_distance`` controls Plotly camera distance in scene units.
     ``orbit_color`` sets the trajectory color for both backends (default bright yellow).
     """
+    if elev is None:
+        elev = np.rad2deg(np.arctan(1 / np.sqrt(2)))
     if backend not in ("plotly", "matplotlib"):
         raise ValueError("backend must be 'plotly' or 'matplotlib'")
     lat = np.deg2rad(launch_lat_deg)
