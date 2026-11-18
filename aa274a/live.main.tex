@@ -1,0 +1,132 @@
+\documentclass[11pt]{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage[margin=1in]{geometry}
+\usepackage[colorlinks=true, urlcolor=blue]{hyperref}
+
+% Put the plots saved by the notebooks (the plots/ folder) next to this file,
+% or place this file inside your HW4 repo folder.
+\graphicspath{{plots/}{../plots/}{./}}
+
+\newcommand{\answer}{\par\noindent\textbf{Answer:} }
+
+\title{AA274A Homework 4}
+\author{Name: \\ SUNet ID: }
+\date{}
+
+\begin{document}
+
+\begin{document}
+\maketitle
+
+\noindent\textbf{Collaborators:} None
+
+\noindent\textbf{Use of generative AI:} 
+
+% Keep each problem on its own page and every part in the order below.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section*{Problem 1: Convolutions and Image Features}
+
+\subsection*{(i)}
+Graded by the autograder; nothing to include.
+
+\subsection*{(ii)}
+% \begin{center}
+%     \includegraphics[width=0.6\linewidth]{p1_matches.png}
+% \end{center}
+
+\answer Corners in first view: \underline{\hspace{1.5cm}}; corners in second view: \underline{\hspace{1.5cm}}; correct matches: \underline{\hspace{1.5cm}}
+
+\subsection*{(iii)}
+
+\subsection*{(iv)}
+% \begin{center}
+%     \includegraphics[width=0.6\linewidth]{p1_rotation.png}
+% \end{center}
+
+\answer
+\begin{center}
+\begin{tabular}{c|c|c}
+Rotation & Repeatability & Correct matches \\ \hline
+$0^\circ$  & \underline{\hspace{1.5cm}} & \underline{\hspace{1.5cm}} \\
+$30^\circ$ & \underline{\hspace{1.5cm}} & \underline{\hspace{1.5cm}} \\
+$90^\circ$ & \underline{\hspace{1.5cm}} & \underline{\hspace{1.5cm}}
+\end{tabular}
+\end{center}
+
+\subsection*{(v)}
+\noindent\textbf{(a)}
+
+\answer Maximum difference away from the border: \underline{\hspace{1.5cm}}
+
+\medskip
+\noindent\textbf{(b)}
+
+\answer Direct $13\times 13$ Gaussian: \underline{\hspace{1.5cm}} multiplications per pixel; separable: \underline{\hspace{1.5cm}} multiplications per pixel
+
+\medskip
+\noindent\textbf{(c)}
+
+\answer Weights in one $3\times 3$ mask: \underline{\hspace{1.5cm}}; receptive field after three $3\times 3$ convolutions: \underline{\hspace{1.5cm}}; layers needed for a $15\times 15$ receptive field: \underline{\hspace{1.5cm}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section*{Problem 2: Bundle Adjustment SLAM with GTSAM}
+
+\subsection*{(i)}
+% Insert your labeled factor graph here (drawn by hand or with a drawing tool).
+% \begin{center}
+%     \includegraphics[width=0.75\linewidth]{p2_factor_graph.png}
+% \end{center}
+
+\answer Number of factors (including the prior): \underline{\hspace{1.5cm}}
+
+\subsection*{(ii)}
+Graded by the autograder; nothing to include.
+
+\subsection*{(iii)}
+% \begin{center}
+%     \includegraphics[width=0.8\linewidth]{p2_slam_5.png}
+% \end{center}
+
+\answer Total factors: \underline{\hspace{1.5cm}}; prior factors: \underline{\hspace{1.5cm}}; odometry factors: \underline{\hspace{1.5cm}}; range-bearing factors: \underline{\hspace{1.5cm}}; loop-closure factors: \underline{\hspace{1.5cm}}
+
+\answer Maximum position error (dead reckoning): \underline{\hspace{1.5cm}} m; maximum position error (optimized): \underline{\hspace{1.5cm}} m
+
+\subsection*{(iv)}
+
+\subsection*{(v)}
+% \begin{center}
+%     \includegraphics[width=0.8\linewidth]{p2_ranges.png}
+% \end{center}
+
+\answer
+\begin{center}
+\begin{tabular}{c|c|c}
+Sensor range & Number of factors & Maximum position error (m) \\ \hline
+$3$ m  & \underline{\hspace{1.5cm}} & \underline{\hspace{1.5cm}} \\
+$5$ m  & \underline{\hspace{1.5cm}} & \underline{\hspace{1.5cm}} \\
+$10$ m & \underline{\hspace{1.5cm}} & \underline{\hspace{1.5cm}}
+\end{tabular}
+\end{center}
+
+% Report the final-pose uncertainty (standard deviation) with and without
+% loop closure for each sensor range; use the same units as the notebook.
+\answer
+\begin{center}
+\begin{tabular}{c|c|c}
+Sensor range & Final-pose std. with loop closure & Without loop closure \\ \hline
+$3$ m  & \underline{\hspace{1.5cm}} & \underline{\hspace{1.5cm}} \\
+$5$ m  & \underline{\hspace{1.5cm}} & \underline{\hspace{1.5cm}} \\
+$10$ m & \underline{\hspace{1.5cm}} & \underline{\hspace{1.5cm}}
+\end{tabular}
+\end{center}
+
+\end{document}
+
+\end{document}
