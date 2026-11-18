@@ -67,7 +67,7 @@ def greg_to_jd(
     return jd
 
 
-def jd_to_greg(jd: float):
+def jd_to_greg(jd: float, print_fmt: False):
     """Turns julian date into Gregorian calendar date (Vallado 4e Algorithm 22 p. 202)
 
     Args:
@@ -103,7 +103,11 @@ def jd_to_greg(jd: float):
     min = np.trunc((T - hr) * 60)
     sec = (T - hr - min / 60) * 3600
 
-    return (int(year), int(month + 1), int(day_of_yr - day_sum), int(hr), int(min), sec)
+    date = (int(year), int(month + 1), int(day_of_yr - day_sum), int(hr), int(min), float(sec))
+
+    if print_fmt:
+        return f"{date[0]:04d}-{date[1]:02d}-{date[2]:02d} {date[3]:02d}:{date[4]:02d}:{date[5]:05.2f}"
+
 
 
 ################################################################################
