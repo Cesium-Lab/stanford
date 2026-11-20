@@ -7,9 +7,20 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+
+
+install(PROGRAMS
+    scripts/oldish/heading_controller.py
+    scripts/oldish/p3_plot.py
+    scripts/a_star.py
+    scripts/heartbeat.py
+    scripts/navigator.py
+    scripts/perception_controller.py
+    DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY launch rviz
+        DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
