@@ -1,5 +1,8 @@
 import numpy as np
+from numpy.linalg import norm
 from scipy.integrate import solve_ivp
+
+from constants import RAD_TO_DEG
 
 def AA279jacobianshoot(odefun, tspan, y0in, dv, t_arr):
     """
@@ -54,3 +57,66 @@ def AA279jacobianshoot(odefun, tspan, y0in, dv, t_arr):
     J[:, 2] = (rhigh-rlow)/(2*dv)
 
     return J
+
+
+
+# eps=1e-8rad
+def flyby_shoot(
+    v_arrival_PCI: float,
+    v_departure_PCI: float,
+    delta_des: float,
+    mu: float,
+    deg=False,
+    eps=1e-8,
+    d=10,
+    verbose=False,
+) -> tuple[float, float, float, float, float]:
+
+    delta_des = delta_des / RAD_TO_DEG if deg else delta_des
+
+    def delta_tot(r_p):
+        return np.arcsin(1 / (1 + r_p * v_arrival_PCI**2 / mu)), np.arcsin(
+            1 / (1 + r_p * v_departure_PCI**2 / mu)
+        )
+
+    # Guess if circular velocity with e=2
+    e = 2
+    r_p = mu * (e - 1) / (v_arrival_PCI**2)
+
+    iter = 20
+    for i in range(iter):
+        delta1, delta2 = delta_tot(r_p)
+
+        d_delta = delta_des - (delta1 + delta2)
+
+        if verbose:
+            print(f"d_delta: {d_delta:.5f}m")
+
+        if norm(d_delta) < eps:
+            break
+
+        J = (sum(delta_tot(r_p + d)) - sum(delta_tot(r_p - d))) / (2 * d)
+
+        step = d_delta / J
+
+        # Make sure periapsis is positive
+        alpha = 1.0
+
+        while r_p + alpha * step <= 0:
+            alpha *= 0.5
+
+        r_p += alpha * step
+
+    else:
+        raise ValueError
+
+    # dv
+    v_p1 = np.sqrt(v_arrival_PCI**2 + 2 * mu / r_p)
+    v_p2 = np.sqrt(v_departure_PCI**2 + 2 * mu / r_p)
+    dv = abs(v_p2 - v_p1)
+    # e
+    e1 = 1 + r_p * v_arrival_PCI**2 / mu
+    e2 = 1 + r_p * v_departure_PCI**2 / mu
+
+    return dv, v_p1, v_p2, r_p, e1, e2, delta1, delta2
+

@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 from tqdm import tqdm
 
 from constants import DEG_TO_RAD, MU_EARTH, W_EARTH, R_EARTH, AU_TO_KM, MU_SUN, ECLIPTIC_ANGLE, CTY_TO_DAY, J2000_JD
-from angle import dcm_x, dcm_z
+from angle import dcm_x, dcm_z, wrap_to_2pi, wrap_to_pi
 from spacetime import greg_to_jd
 from matlab.engine import MatlabEngine
 
@@ -119,11 +119,11 @@ def e_sp(r,v,mu):
 
 def ECI_from_HCI():
     """HCI to ICRF/J2000 ECI"""
-    return np.array(
+    return np.array([
         [1, 0, 0],
         [0, np.cos(ECLIPTIC_ANGLE), -np.sin(ECLIPTIC_ANGLE)],
         [0, np.sin(ECLIPTIC_ANGLE), np.cos(ECLIPTIC_ANGLE)]
-    )
+    ])
 
 ###########################################################################
 #                   RV <-- COE
@@ -169,11 +169,11 @@ def rv_from_coe(a: float, e: float, i: float, raan: float, aop: float, M: float,
     return r_I, v_I
 
 ###########################################################################
-#                   PCPF <--> LLA
+#                   cart <--> LLA
 ###########################################################################
 
-def PCPF_from_lla(lat: float, lon: float, alt_km = 0.0, r_body_km = R_EARTH, deg = True):
-    """Convert latitude, longitude, and altitude to planet-centered, planet-fixed.
+def cartesian_from_lla(lat: float, lon: float, alt_km = 0.0, r_body_km = R_EARTH, deg = True):
+    """Convert latitude, longitude, and altitude to cartesian coordinates.
     Spherical body.
 
     Parameters
@@ -189,8 +189,8 @@ def PCPF_from_lla(lat: float, lon: float, alt_km = 0.0, r_body_km = R_EARTH, deg
 
     Returns
     -------
-    r_PCPF : np.ndarray (3,)
-        Body-fixed position [km]
+    r_cart : np.ndarray (3,)
+        Cartesian position [km]
     """
     if deg:
         lat *= DEG_TO_RAD
@@ -198,13 +198,50 @@ def PCPF_from_lla(lat: float, lon: float, alt_km = 0.0, r_body_km = R_EARTH, deg
         
     rho = r_body_km + alt_km
     
-    r_PCPF = np.array([
+    r_cart = np.array([
         rho * np.cos(lat) * np.cos(lon),
         rho * np.cos(lat) * np.sin(lon),
         rho * np.sin(lat)
     ])
     
-    return r_PCPF
+    return r_cart
+
+def lla_from_cartesian(r_cart: np.ndarray, r_body_km = R_EARTH, deg = True) -> tuple[float, float, float]:
+    """Convert cartesian coordiantes to latitude, longitude, and altitude.
+    Spherical body.
+
+    Parameters
+    ----------
+    r_cart : np.ndarray (3,)
+        Cartesian position [km]
+    r_body_km : float
+        Body radius [km]
+    deg : bool
+        Whether input angles are in degrees
+
+    Returns
+    -------
+
+    lat, lon : float
+        Lat,lon [deg if deg=True, else rad]
+    alt_km : float
+        Altitude above SPHERICAL surface [km]
+    """
+
+    rho = norm(r_cart)
+
+    lon = wrap_to_pi(np.arctan2(r_cart[1], r_cart[0]))
+    lat = wrap_to_pi(np.arcsin(r_cart[2] / rho))
+
+    alt_km = rho - r_body_km
+
+    if deg:
+        lat /= DEG_TO_RAD
+        lon /= DEG_TO_RAD
+        
+    
+    return lat, lon, alt_km
+
 
 ###########################################################################
 #                   PCI <--> PCPF
@@ -262,6 +299,18 @@ def calc_PCI_from_PCPF(r_PCPF: np.ndarray, v_PCPF: np.ndarray, t_utc: float, the
     
     return r_PCI, v_PCI
 
+def calc_PCPF_from_PCI(r_PCI: np.ndarray, v_PCI: np.ndarray, t_utc: float, theta_ref: float, t_ref: float, w_body = W_EARTH):
+
+    # Earth rotation angle
+    theta_PCPF_wrt_PCI = calc_theta_g(t_utc, theta_ref, t_ref, w_body)
+    
+    dcm_PCPF_wrt_PCI = dcm_z(theta_PCPF_wrt_PCI)
+    
+    r_PCPF = dcm_PCPF_wrt_PCI @ r_PCI
+    v_PCPF = dcm_PCPF_wrt_PCI @ (v_PCI - np.cross([0,0,w_body], r_PCI))
+    
+    return r_PCPF, v_PCPF
+
 ###########################################################################
 #                   PCI <--> LLA
 ###########################################################################
@@ -293,7 +342,7 @@ def launch_PCI(t_arr_utc: np.ndarray, lat: float, lon: float, alt: float, theta_
     launch_r_PCI, launch_v_PCI : np.ndarray (N, 3)
         Inertial positions [km] and velocities [km/s]
     """
-    launch_r_PCPF = PCPF_from_lla(lat, lon, alt, r_body_km, deg)
+    launch_r_PCPF = cartesian_from_lla(lat, lon, alt, r_body_km, deg)
     launch_v_PCPF = np.zeros(3)
     
     launch_arr_PCI = np.array([calc_PCI_from_PCPF(launch_r_PCPF, launch_v_PCPF, t, theta_ref, t_ref, w_body) for t in t_arr_utc])
@@ -301,9 +350,17 @@ def launch_PCI(t_arr_utc: np.ndarray, lat: float, lon: float, alt: float, theta_
     launch_v_PCI = launch_arr_PCI[:,1,:]
     return launch_r_PCI, launch_v_PCI
 
+
 ###########################################################################
-#                   Sanity
+#                   Random
 ###########################################################################
+
+def spreading_loss(R):
+    """dB/m2"""
+    if R < 1:
+        return np.nan
+    return -70.99 - 20*np.log10(R)
+
 
 # Vallado 4e example 2-6 p. 119 (pdf p. 146)
 assert np.allclose(
@@ -320,4 +377,3 @@ assert np.allclose(
     ),
     np.array([[6525.344, 6861.535, 6449.125], [4.902276, 5.533124, -1.975709]]),
 )
-

@@ -8,3 +8,6 @@ ipykernel
 IPython
 plotly
 tqdm
+pandas
+kaleido>=1
+juliandate
