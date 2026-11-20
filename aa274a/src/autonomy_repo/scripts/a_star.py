@@ -194,35 +194,3 @@ class AStar(object):
                 self.est_cost_through[x_neigh] = tentative_cost_to_arrive + self.heuristic(x_neigh)                
                     
         return False
-
-# class DetOccupancyGrid2D(object):
-#     """
-#     A 2D state space grid with a set of rectangular obstacles. The grid is
-#     fully deterministic
-#     """
-#     def __init__(self, width, height, obstacles):
-#         self.width = width
-#         self.height = height
-#         self.obstacles = obstacles
-
-#     def is_free(self, x):
-#         """Verifies that point is not inside any obstacles by some margin"""
-#         for obs in self.obstacles:
-#             if x[0] >= obs[0][0] - self.width * .01 and \
-#                x[0] <= obs[1][0] + self.width * .01 and \
-#                x[1] >= obs[0][1] - self.height * .01 and \
-#                x[1] <= obs[1][1] + self.height * .01:
-#                 return False
-#         return True
-
-#     def plot(self, fig_num=0):
-#         """Plots the space and its obstacles"""
-#         fig = plt.figure(fig_num)
-#         ax = fig.add_subplot(111, aspect='equal')
-#         for obs in self.obstacles:
-#             ax.add_patch(
-#             patches.Rectangle(
-#             obs[0],
-#             obs[1][0]-obs[0][0],
-#             obs[1][1]-obs[0][1],))
-#         ax.set(xlim=(0,self.width), ylim=(0,self.height))

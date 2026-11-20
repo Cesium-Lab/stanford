@@ -12,7 +12,7 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
-            DeclareLaunchArgument("use_sim_time", default_value="true"),
+            DeclareLaunchArgument("use_sim_time", default_value="false"),
             IncludeLaunchDescription(
                 PathJoinSubstitution(
                     [FindPackageShare("asl_tb3_sim"), "launch", "rviz.launch.py"]
@@ -43,7 +43,7 @@ def generate_launch_description():
             ),
             # student's heading controller node
             Node(
-                executable="oldish/heading_controller.py",
+                executable="heading_controller.py",
                 package="autonomy_repo",
             ),
         ]
