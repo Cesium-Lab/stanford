@@ -67,6 +67,9 @@ rm -rf build install log   # full reset
 ## Running
 ```bash
 source install/setup.bash
+
+ros2 launch asl_tb3_sim root.launch.py
+
 ros2 run autonomy_repo navigator.py
 ros2 launch autonomy_repo navigator.launch.py
 
