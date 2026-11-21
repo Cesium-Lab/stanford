@@ -77,18 +77,11 @@ class Navigator(BaseNavigator):
     ##### Helpers #####
     
     def reset(self) -> None:
-        # self.traj_time = None
-        # self.traj = None
         
         self.t_prev = 0.0
         self.v_prev = 0.0
         self.om_prev = 0.0
-    
-    # def load_traj(self, traj_time: np.ndarray, plan: TrajectoryPlan) -> None:
-    #     """ Loads in a new trajectory to follow, and resets the time """
-    #     self.traj_time = traj_time
-    #     self.plan = plan
-    
+
     @staticmethod
     def get_flatness_values(t: float, plan: TrajectoryPlan) -> tuple[np.ndarray, np.ndarray, np.ndarray,
                                                     np.ndarray, np.ndarray, np.ndarray]:
@@ -120,7 +113,6 @@ class Navigator(BaseNavigator):
         Returns:
             TurtleBotControl: control target
         """
-        
         err = wrap_angle(goal.theta - state.theta)
         omega = self.params.kp_theta * err
         
@@ -176,11 +168,8 @@ class Navigator(BaseNavigator):
     ) -> TrajectoryPlan | None:
         
         # Run A* using horizon, state, goal, occupancy, and resolution
-        grid_size = occupancy.size_xy
         x_init = (state.x, state.y)
         x_goal=(goal.x, goal.y)
-        statespace_lo=(0,0)
-        statespace_hi=grid_size
         
         a_star = AStar(
             (state.x - horizon, state.y - horizon),
@@ -223,8 +212,8 @@ class Navigator(BaseNavigator):
         
         # Unsolvable
         #  if A* problem is not solvable or length of path < 4 then
-        # 3: return None
-        # 4: end if
+        #   return None
+        #  end if
         
 if __name__ == "__main__":
     rclpy.init()
