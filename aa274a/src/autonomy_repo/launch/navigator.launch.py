@@ -26,9 +26,16 @@ def generate_launch_description():
                 executable="state_publisher.py",
                 package="asl_tb3_lib",
             ),
-            # student's heading controller node
+            # controller node
             Node(
                 executable="navigator.py",
+                package="autonomy_repo",
+                parameters=[{"use_sim_time": use_sim_time}],
+            ),
+            # TimerAction(period=3.0),
+            # frontier explorer waypoint choosing
+            Node(
+                executable="frontier_explorer.py",
                 package="autonomy_repo",
                 parameters=[{"use_sim_time": use_sim_time}],
             ),

@@ -36,7 +36,7 @@ BaseNavigator
 - params
 """
 
-V_PREV_THRES = 0.0001
+V_PREV_THRES = 0.001
 
 @dataclass
 class NavigatorParams:

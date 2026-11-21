@@ -11,7 +11,6 @@ class PerceptionController(BaseHeadingController):
     def __init__(self):
         super().__init__("perception_controller")
         
-        self.active = True # do we nneed this?
         self.declare_parameter("active", True)
         
         self.image_detected = False

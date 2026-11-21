@@ -42,11 +42,11 @@ def explore(occupancy: StochOccupancyGrid2D, window_size=11, min_unknown=0.25, m
     """
     probs = occupancy.probs
     ########## Code starts here ##########
-    probs = probs.T
+    # probs = probs.T
 
     occupied_mask = probs >= occupied_thresh
     unknown_mask = probs < 0.0
-    unoccupied_mask = (probs < occupied_thresh) & (probs == 0.0)  # fix this later
+    unoccupied_mask = (probs < occupied_thresh) & (probs >= 0.0)  # fix this later
 
     occupied_rslt = window_counts(occupied_mask, window_size)
     unknown_rslt = window_counts(unknown_mask, window_size)
@@ -58,7 +58,9 @@ def explore(occupancy: StochOccupancyGrid2D, window_size=11, min_unknown=0.25, m
         (occupied_rslt == 0)
         & ((unknown_rslt / area) >= min_unknown)
         & ((unoccupied_rslt / area) >= min_free)
-    )
+    )[:, ::-1]
+
+    # frontier_idx = np.argwhere(...)[:, ::-1]   # (ky, kx) -> (kx, ky)
 
     frontier_states = np.array([occupancy.grid2state(s) for s in frontier_states])
 

@@ -10,12 +10,13 @@ find_package(ament_cmake REQUIRED)
 
 
 install(PROGRAMS
-    scripts/oldish/heading_controller.py
-    scripts/oldish/p3_plot.py
+    # scripts/oldish/heading_controller.py
+    # scripts/oldish/p3_plot.py
     scripts/a_star.py
-    scripts/heartbeat.py
+    scripts/frontier_explorer.py
+    # scripts/heartbeat.py
     scripts/navigator.py
-    scripts/perception_controller.py
+    # scripts/perception_controller.py
     DESTINATION lib/${PROJECT_NAME}
 )
 
