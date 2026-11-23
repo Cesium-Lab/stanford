@@ -155,9 +155,9 @@ class FrontierExplorer(Node):
         # Nav failure OR success, need to replan
         frontier_states = explore(self.occupancy, self.window_size, self.min_unknown, self.min_free, self.occupied_thresh)
 
-        # frontier_states = np.array([s for s in frontier_states
-        #     if all(np.linalg.norm(s - f) > 0.3 for f in self.failed_goals)]
-        # ).reshape(-1, 2)
+        frontier_states = np.array([s for s in frontier_states
+            if all(np.linalg.norm(s - f) > 0.3 for f in self.failed_goals)]
+        ).reshape(-1, 2)
 
         closest_state, distance = closest_frontier(frontier_states, self.current_state)
         self.last_goal = closest_state
@@ -184,7 +184,7 @@ class FrontierExplorer(Node):
         
 
     # def detector_callback(self, msg: Bool) -> None:
-    #     if msg:
+    #     if msg.data:
     #         self.stopped = True
     #         self.stop_sign_timer.reset()
 
