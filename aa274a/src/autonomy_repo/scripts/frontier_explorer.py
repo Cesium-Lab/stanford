@@ -11,6 +11,10 @@ from std_msgs.msg import Bool
 from nav_msgs.msg import OccupancyGrid, Path
 
 
+##########################################################################################
+#                   Functions
+##########################################################################################
+
 def window_counts(mask, window_size):
     """
     Number of True cells of mask in the window_size x window_size window centered on every cell.
@@ -93,7 +97,11 @@ def closest_frontier(frontier_states, current_state):
     return frontier_states[i], dist[i]
     ########## Code ends here ##########
     
-    
+
+##########################################################################################
+#                   FrontierExplorer
+##########################################################################################
+
 
 class FrontierExplorer(Node):
     def __init__(self, window_size=11, min_unknown=0.25, min_free=0.35, occupied_thresh=50):
@@ -111,6 +119,11 @@ class FrontierExplorer(Node):
         
         self.send_cmd_pub = self.create_publisher(TurtleBotState, "/cmd_nav", 10)
 
+        # self.detector_sub = self.create_subscription(Bool, "/detector_bool", self.detector_callback, 10)
+        # self.stop_sign_timer = self.create_timer(5.0, self.stop_sign_callback)
+        # self.stop_sign_timer.cancel()
+        self.stopped = False  # due to stop sign
+        
         self.current_state = None
         self.occupancy = None
 
@@ -142,9 +155,9 @@ class FrontierExplorer(Node):
         # Nav failure OR success, need to replan
         frontier_states = explore(self.occupancy, self.window_size, self.min_unknown, self.min_free, self.occupied_thresh)
 
-        frontier_states = np.array([s for s in frontier_states
-            if all(np.linalg.norm(s - f) > 0.3 for f in self.failed_goals)]
-        ).reshape(-1, 2)
+        # frontier_states = np.array([s for s in frontier_states
+        #     if all(np.linalg.norm(s - f) > 0.3 for f in self.failed_goals)]
+        # ).reshape(-1, 2)
 
         closest_state, distance = closest_frontier(frontier_states, self.current_state)
         self.last_goal = closest_state
@@ -161,14 +174,26 @@ class FrontierExplorer(Node):
 
     def success_callback(self, msg: Bool) -> None:
 
-        if self.occupancy is None or self.current_state is None:
+        if self.stopped or (self.occupancy is None) or (self.current_state is None):
             return
 
-        if not msg.data and self.last_goal is not None:
+        if (not msg.data) and (self.last_goal is not None):
             self.failed_goals.append(self.last_goal)
 
         self.explore_cmd()
         
+
+    # def detector_callback(self, msg: Bool) -> None:
+    #     if msg:
+    #         self.stopped = True
+    #         self.stop_sign_timer.reset()
+
+    # def stop_sign_callback(self) -> None:
+    #     # no timer, resumes 
+    #     self.stopped = False
+    #     self.stop_sign_timer.cancel()
+
+
 
 
     
