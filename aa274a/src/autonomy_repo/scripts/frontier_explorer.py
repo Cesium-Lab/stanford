@@ -104,6 +104,8 @@ def closest_frontier(frontier_states, current_state):
 
 
 class FrontierExplorer(Node):
+    STOP_SIGN_WAIT_PERIOD = 10  # seconds
+
     def __init__(self, window_size=11, min_unknown=0.25, min_free=0.35, occupied_thresh=50):
         super().__init__("frontier_explorer")
         
@@ -119,12 +121,16 @@ class FrontierExplorer(Node):
         
         self.send_cmd_pub = self.create_publisher(TurtleBotState, "/cmd_nav", 10)
 
-        # self.detector_sub = self.create_subscription(Bool, "/detector_bool", self.detector_callback, 10)
-        # self.stop_sign_timer = self.create_timer(5.0, self.stop_sign_callback)
-        # self.stop_sign_timer.cancel()
-        self.stopped = False  # due to stop sign
-        
+        self.detector_sub = self.create_subscription(Bool, "/detector_bool", self.detector_callback, 10)
+
+        self.resume_timer = self.create_timer(5.0, self.resume_callback)  # stop duration
+        self.resume_timer.cancel()
+
+        self.stopped = False
+        self.ignore_until = 0.0
+
         self.current_state = None
+        self.current_msg = None
         self.occupancy = None
 
         self.started = False
@@ -135,6 +141,7 @@ class FrontierExplorer(Node):
         
     def state_callback(self, msg: TurtleBotState) -> None:
         self.current_state = np.array([msg.x, msg.y])
+        self.current_msg = msg
         
     def map_callback(self, msg: OccupancyGrid) -> None:
         self.occupancy = StochOccupancyGrid2D(
@@ -183,20 +190,24 @@ class FrontierExplorer(Node):
         self.explore_cmd()
         
 
-    # def detector_callback(self, msg: Bool) -> None:
-    #     if msg.data:
-    #         self.stopped = True
-    #         self.stop_sign_timer.reset()
+    def now(self) -> float:
+        return self.get_clock().now().nanoseconds * 1e-9
 
-    # def stop_sign_callback(self) -> None:
-    #     # no timer, resumes 
-    #     self.stopped = False
-    #     self.stop_sign_timer.cancel()
+    def detector_callback(self, msg: Bool) -> None:
+        if not msg.data or self.stopped or self.current_msg is None or self.now() < self.ignore_until:
+            return
+        self.stopped = True
+        self.send_cmd_pub.publish(self.current_msg)
+        self.resume_timer.reset()
+
+    def resume_callback(self) -> None:
+
+        self.resume_timer.cancel()
+        self.stopped = False
+        self.ignore_until = self.now() + self.STOP_SIGN_WAIT_PERIOD
+        self.explore_cmd()
 
 
-
-
-    
 if __name__ == "__main__":
     rclpy.init()
     node = FrontierExplorer()
