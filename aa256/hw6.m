@@ -29,25 +29,66 @@ T = @(x) [
 
 angles = [45 -45 90 0 60 -60 90 -60 60 0 90 -45 45];
 num_layers = numel(angles);
-H = num_layers * material.h;  % mm, laminate thickness
+thickness = num_layers * material.h;  % mm, laminate thickness
 
+% small factor instead of 0 so ABD stays invertible
+small = 1e-6;
+Q_matrix_failed = getQ(material.E1, small*material.E2, small*material.G, small*material.nu1);
+Q_fiber_failed = small * Q;
 
+% Tracking which ones fail
 % 0 = intact, 1 = matrix failed, 2 = fiber failed
 ply_state = zeros(num_layers, 1);
 Q_ply = repmat(Q, 1, 1, num_layers);
 
 [A,B,D,alpha,beta,delta] = laminate(Q_ply, T, angles, material.h);
-fprintf('Initial laminate modulus Ex = %.2f GPa\n', 1/(H*alpha(1,1))/1e3);
 
 num_forces = 500;
 N = linspace(0, 900, num_forces);  % Trying to get it to 16000 microstrain
+
+% Results
+eps_x = zeros(num_forces, 1);    % laminate axial strain
+sigma_x = N' / thickness;                % MPa, laminate axial stress
+last = num_forces;
 for i = 1:num_forces
-    eps0 = alpha * [0 0 N(i)]';
-    ek = eps0;
-    s_local = Q*ek;  % MPa
-    
-    for j = 1:num_layers
-        Tk = T(deg2rad(angles(j)));
+
+
+    % Keep re-checking at this load until no new ply fails
+    failed = true;
+    while failed
+        failed = false;
+        [~,~,~,alpha] = laminate(Q_ply, T, angles, material.h);
+        eps0 = alpha * [N(i) 0 0]';
+
+        for j = 1:num_layers
+            Tk = T(deg2rad(angles(j)));
+            Qbar_k = Tk \ Q_ply(:,:,j) / Tk';
+            sig_12 = Tk * Qbar_k * eps0;
+            [diff_fiber, diff_matrix] = hashin(sig_12, material);
+
+            if diff_fiber >= 1 && ply_state(j) < 2
+                ply_state(j) = 2;
+                Q_ply(:,:,j) = Q_fiber_failed;
+                failed = true;
+                fprintf('Ply %2d (%3d deg) fiber failure  at %.1f MPa\n', j, angles(j), sigma_x(i));
+            elseif diff_matrix >= 1 && ply_state(j) < 1
+                ply_state(j) = 1;
+                Q_ply(:,:,j) = Q_matrix_failed;
+                failed = true;
+                fprintf('Ply %2d (%3d deg) matrix failure at %.1f MPa\n', j, angles(j), sigma_x(i));
+            end
+        end
+    end
+
+    % Laminate is gone once the 0 deg plies break
+    if all(ply_state(angles == 0) == 2)
+        last = i - 1;
+        fprintf('Final failure at sigma = %.1f MPa\n', sigma_x(i));
+        break
+    end
+
+    eps_x(i) = eps0(1);
+end
 
 % Approximate paper values from graph
 fig4 = [
