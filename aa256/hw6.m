@@ -44,7 +44,7 @@ Q_ply = repmat(Q, 1, 1, num_layers);
 [A,B,D,alpha,beta,delta] = laminate(Q_ply, T, angles, material.h);
 
 num_forces = 500;
-N = linspace(0, 900, num_forces);  % Trying to get it to 16000 microstrain
+N = linspace(0, 1400, num_forces);  % Trying to get it to 16000 microstrain
 
 % Results
 eps_x = zeros(num_forces, 1);    % laminate axial strain
@@ -80,7 +80,7 @@ for i = 1:num_forces
         end
     end
 
-    % Laminate is gone once the 0 deg plies break
+    % Laminate is gone once the 0 deg plies break or it goes crazy 
     if all(ply_state(angles == 0) == 2)
         last = i - 1;
         fprintf('Final failure at sigma = %.1f MPa\n', sigma_x(i));
