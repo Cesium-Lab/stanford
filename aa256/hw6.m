@@ -80,14 +80,13 @@ for i = 1:num_forces
         end
     end
 
-    % Laminate is gone once the 0 deg plies break or it goes crazy 
-    if all(ply_state(angles == 0) == 2)
-        last = i - 1;
-        fprintf('Final failure at sigma = %.1f MPa\n', sigma_x(i));
+    eps_x(i) = eps0(1);
+
+    % Stop once past 16000 microstrain
+    if eps_x(i) >= 0.016
+        last = i;
         break
     end
-
-    eps_x(i) = eps0(1);
 end
 
 % Approximate paper values from graph
@@ -102,12 +101,11 @@ fig4 = [
 figure
 plot(1e6*eps_x(1:last), sigma_x(1:last), 'LineWidth', 1.5)
 hold on
-plot(1e6*[eps_x(last) eps_x(last)], [sigma_x(last) 0], 'b--')  % final failure
 plot(fig4(:,1), fig4(:,2), 'k-o')
-xlim([0 max(16000, 1.05e6*eps_x(last))])
+xlim([0 16000])
 xlabel('Axial strain (\mu\epsilon)')
 ylabel('Axial stress (MPa)')
-legend('Hashin progressive failure', 'Final failure', 'McManus & Mak Fig. 4 prediction', 'Location', 'northwest')
+legend('Hashin Prediction', 'Fig. 4 prediction', 'Location', 'northwest')
 grid on
 
 %% Functions
